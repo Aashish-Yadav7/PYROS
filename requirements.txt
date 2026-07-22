@@ -1,0 +1,44 @@
+# ============================================================
+# PYROS — Full dependency list
+# Install everything at once:  pip install -r requirements.txt
+# ============================================================
+
+# ---- Core: env/config ----
+python-dotenv
+
+# ---- LLM providers ----
+groq
+openai              # also used for Cerebras (OpenAI-compatible endpoint)
+mistralai
+cohere
+
+# ---- Memory: structured + vector ----
+chromadb
+sentence-transformers
+
+# ---- PDF reading (for RAG document memory) ----
+pdfplumber
+PyPDF2
+
+# ---- Face & photo recognition ----
+face_recognition     # needs dlib underneath — see note below if install fails
+numpy
+opencv-python
+
+# ---- Voice input/output ----
+SpeechRecognition
+pyttsx3               # offline text-to-speech
+edge-tts               # higher quality online text-to-speech (free, no key needed)
+pyaudio                # microphone access — this is the one that needs Python 3.11
+
+# ---- Desktop UI (Python fallback window, pre-Electron) ----
+PyQt6
+
+# ---- Gmail integration ----
+google-api-python-client
+google-auth-httplib2
+google-auth-oauthlib
+
+# ---- General utilities ----
+requests
+pillow                 # image handling, used alongside face/photo recognition
