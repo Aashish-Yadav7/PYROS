@@ -100,6 +100,16 @@ class LLMRouter:
                 "command-r-plus",
                 provider_type="cohere",
             ),
+            RateLimitedClient(
+                "hpc_key1",
+                OpenAI(api_key=settings.HPC_API_KEY1, base_url="https://api.hpc-ai.com/inference/v1"),
+                "minimax/minimax-m2.5",
+            ),
+            RateLimitedClient(
+                "hpc_key2",
+                OpenAI(api_key=settings.HPC_API_KEY2, base_url="https://api.hpc-ai.com/inference/v1"),
+                "minimax/minimax-m2.5",
+            ),
         ]
 
     def _call_openai_style(self, provider, messages, tools, stream):

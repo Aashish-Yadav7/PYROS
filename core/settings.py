@@ -26,7 +26,9 @@ COHERE_API_KEY2 = os.getenv("COHERE_API_KEY2")
 
 # HPC — placeholder until we confirm what this provider actually is and its
 # base URL / SDK. Loaded here so nothing breaks, but NOT yet wired into
-# model_router.py. Tell Claude the provider name and we'll finish this.
+# model_router.py. Tell Claude the provider name and we'll finish this. 
+
+
 HPC_API_KEY1 = os.getenv("HPC_API_KEY1")
 HPC_API_KEY2 = os.getenv("HPC_API_KEY2")
 
