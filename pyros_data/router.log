@@ -1,0 +1,19 @@
+2026-07-23 15:36:58,182 | INFO | CALL groq_key1 (attempt 1)
+2026-07-23 15:36:58,635 | INFO | HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 200 OK"
+2026-07-23 15:36:58,673 | INFO | SUCCESS groq_key1
+2026-07-23 15:44:57,213 | INFO | CALL groq_key1 (attempt 1)
+2026-07-23 15:44:57,537 | INFO | HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 200 OK"
+2026-07-23 15:44:57,572 | INFO | SUCCESS groq_key1
+2026-07-23 15:51:16,536 | INFO | CALL groq_key1 (attempt 1)
+2026-07-23 15:51:16,878 | INFO | HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 200 OK"
+2026-07-23 15:51:16,907 | INFO | SUCCESS groq_key1
+2026-07-23 16:44:27,857 | INFO | CALL groq_key1 (attempt 1)
+2026-07-23 16:44:28,560 | INFO | HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 200 OK"
+2026-07-23 16:44:28,594 | INFO | SUCCESS groq_key1
+2026-07-23 16:44:37,244 | INFO | CALL groq_key1 (attempt 1)
+2026-07-23 16:44:37,829 | INFO | HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 200 OK"
+2026-07-23 16:44:37,831 | INFO | SUCCESS groq_key1
+2026-07-23 16:44:37,831 | INFO | CALL groq_key1 (attempt 1)
+2026-07-23 16:44:39,261 | INFO | HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 200 OK"
+2026-07-23 16:44:39,263 | INFO | SUCCESS groq_key1
+2026-07-23 16:44:39,406 | INFO | Handled request in 2.22s with 0 tool round(s)

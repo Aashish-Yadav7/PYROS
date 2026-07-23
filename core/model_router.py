@@ -20,7 +20,7 @@ import logging
 from collections import deque
 from groq import Groq
 from openai import OpenAI
-from mistralai import Mistral
+from mistralai.client.sdk import Mistral
 import cohere
 import core.settings as settings
 
