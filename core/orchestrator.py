@@ -1,24 +1,13 @@
 """
 core/orchestrator.py
 
-The brain — advanced version.
-
-New capabilities vs the basic version:
-1. MULTI-ROUND TOOL USE: the model can call a tool, look at the result,
-   then decide to call ANOTHER tool before finally answering — not just one.
-2. CONTEXT SUMMARIZATION: when chat history gets long, older messages are
-   compressed into a short summary instead of being dropped or overflowing
-   the model's context window.
-3. LLM-AS-A-JUDGE SELF-CHECK: for important replies, a second quick model
-   call reviews the draft answer for obvious mistakes before it's shown to you.
-4. FEEDBACK-AWARE PROMPTING: recent things you corrected get quietly folded
-   into the system prompt so PYROS avoids repeating the same mistake.
-5. USAGE TRACKING: logs which provider answered and roughly how long it took.
+The brain. Coordinates memory, RAG, tools, and the model router.
 """
 import json
 import time
 import logging
 from core.model_router import LLMRouter
+from core.identity import get_identity_prompt
 import memory.history_store as history
 import memory.vector_store as vectors
 import core.settings as settings
@@ -27,11 +16,14 @@ logger = logging.getLogger("orchestrator")
 
 router = LLMRouter()
 
-BASE_SYSTEM_PROMPT = """You are PYROS, a personal AI assistant built from scratch by your user.
+BASE_SYSTEM_PROMPT = f"""You are PYROS, a personal AI assistant.
 You are helpful, direct, and honest. You have access to tools for opening apps,
 sending emails, and browsing the web. Use a tool whenever the request calls for
 an action, not just an explanation. If a task needs multiple steps (e.g. look
-something up, then act on it), use tools one at a time and reason between steps."""
+something up, then act on it), use tools one at a time and reason between steps.
+
+{get_identity_prompt()}
+"""
 
 MAX_TOOL_ROUNDS = 4
 SUMMARIZE_AFTER = 30
