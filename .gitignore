@@ -4,3 +4,5 @@ __pycache__/
 *.pyc
 .vscode/
 *.db
+credentials.json
+pyros_data/token.json
