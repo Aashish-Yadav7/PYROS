@@ -64,53 +64,19 @@ class RateLimitedClient:
 class LLMRouter:
     def __init__(self):
         self.providers = [
-            RateLimitedClient("groq_key1", Groq(api_key=settings.GROQ_API_KEY1), "llama-3.3-70b-versatile"),
-            RateLimitedClient("groq_key2", Groq(api_key=settings.GROQ_API_KEY2), "llama-3.3-70b-versatile"),
-            RateLimitedClient("mistral_key1", Mistral(api_key=settings.MISTRAL_API_KEY1), "mistral-large-latest"),
-            RateLimitedClient("mistral_key2", Mistral(api_key=settings.MISTRAL_API_KEY2), "mistral-large-latest"),
-            RateLimitedClient(
-                "cerebras_key1",
-                OpenAI(api_key=settings.CEREBRAS_API_KEY1, base_url="https://api.cerebras.ai/v1"),
-                "llama-3.3-70b",
-            ),
-            RateLimitedClient(
-                "cerebras_key2",
-                OpenAI(api_key=settings.CEREBRAS_API_KEY2, base_url="https://api.cerebras.ai/v1"),
-                "llama-3.3-70b",
-            ),
-            RateLimitedClient(
-                "openrouter_key1",
-                OpenAI(api_key=settings.OPENROUTER_API_KEY1, base_url="https://openrouter.ai/api/v1"),
-                "meta-llama/llama-3.3-70b-instruct:free",
-            ),
-            RateLimitedClient(
-                "openrouter_key2",
-                OpenAI(api_key=settings.OPENROUTER_API_KEY2, base_url="https://openrouter.ai/api/v1"),
-                "meta-llama/llama-3.3-70b-instruct:free",
-            ),
-            RateLimitedClient(
-                "cohere_key1",
-                cohere.Client(api_key=settings.COHERE_API_KEY1),
-                "command-r-plus",
-                provider_type="cohere",
-            ),
-            RateLimitedClient(
-                "cohere_key2",
-                cohere.Client(api_key=settings.COHERE_API_KEY2),
-                "command-r-plus",
-                provider_type="cohere",
-            ),
-            RateLimitedClient(
-                "hpc_key1",
-                OpenAI(api_key=settings.HPC_API_KEY1, base_url="https://api.hpc-ai.com/inference/v1"),
-                "minimax/minimax-m2.5",
-            ),
-            RateLimitedClient(
-                "hpc_key2",
-                OpenAI(api_key=settings.HPC_API_KEY2, base_url="https://api.hpc-ai.com/inference/v1"),
-                "minimax/minimax-m2.5",
-            ),
-        ]
+    RateLimitedClient("groq_key1", Groq(api_key=settings.GROQ_API_KEY1), "llama-3.3-70b-versatile"),
+    RateLimitedClient("groq_key2", Groq(api_key=settings.GROQ_API_KEY2), "llama-3.3-70b-versatile"),
+    RateLimitedClient("cerebras_key1", OpenAI(api_key=settings.CEREBRAS_API_KEY1, base_url="https://api.cerebras.ai/v1"), "llama-3.3-70b"),
+    RateLimitedClient("cerebras_key2", OpenAI(api_key=settings.CEREBRAS_API_KEY2, base_url="https://api.cerebras.ai/v1"), "llama-3.3-70b"),
+    RateLimitedClient("hpc_key1", OpenAI(api_key=settings.HPC_API_KEY1, base_url="https://api.hpc-ai.com/inference/v1"), "minimax/minimax-m2.5"),
+    RateLimitedClient("hpc_key2", OpenAI(api_key=settings.HPC_API_KEY2, base_url="https://api.hpc-ai.com/inference/v1"), "minimax/minimax-m2.5"),
+    RateLimitedClient("mistral_key1", Mistral(api_key=settings.MISTRAL_API_KEY1), "mistral-large-latest"),
+    RateLimitedClient("mistral_key2", Mistral(api_key=settings.MISTRAL_API_KEY2), "mistral-large-latest"),
+    RateLimitedClient("openrouter_key1", OpenAI(api_key=settings.OPENROUTER_API_KEY1, base_url="https://openrouter.ai/api/v1"), "meta-llama/llama-3.3-70b-instruct:free"),
+    RateLimitedClient("openrouter_key2", OpenAI(api_key=settings.OPENROUTER_API_KEY2, base_url="https://openrouter.ai/api/v1"), "meta-llama/llama-3.3-70b-instruct:free"),
+    RateLimitedClient("cohere_key1", cohere.Client(api_key=settings.COHERE_API_KEY1), "command-r-plus", provider_type="cohere"),
+    RateLimitedClient("cohere_key2", cohere.Client(api_key=settings.COHERE_API_KEY2), "command-r-plus", provider_type="cohere"),
+]
 
     def _call_openai_style(self, provider, messages, tools, stream):
         kwargs = {"model": provider.model, "messages": messages, "timeout": REQUEST_TIMEOUT}
@@ -153,7 +119,7 @@ class LLMRouter:
 
         # Wrap it to look like an OpenAI-style response so orchestrator.py
         # doesn't need to know the difference between providers.
-        
+
         class _FakeMessage:
             content = response.text
             tool_calls = None
