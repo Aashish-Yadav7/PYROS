@@ -1,7 +1,17 @@
 """
 actions/launch.py
 
-Opens applications on your computer, cross-platform, with browser fallback.
+Opens applications on your computer. Uses three layers, in order:
+1. Try Windows' own "start" command, which looks up installed apps via
+   the registry (App Paths) — this finds Chrome, Spotify, etc. correctly
+   even when they're not on your system PATH, as long as they're installed
+   normally.
+2. Try launching the raw .exe name directly (works for built-in Windows
+   tools like notepad.exe, calc.exe).
+3. Fall back to opening the app's website, or a Google search as a last resort.
+
+This means once you install Spotify (or any other app), it should just work —
+no code changes needed, because step 1 finds installed apps automatically.
 """
 import subprocess
 import webbrowser
@@ -9,20 +19,29 @@ import platform
 
 SYSTEM = platform.system()
 
-WINDOWS_APPS = {
-    "notepad": "notepad.exe",
-    "calculator": "calc.exe",
-    "spotify": "spotify.exe",
+# Preferred "start" names — these match what Windows registers installed
+# apps under. Add more here as you install new apps.
+WINDOWS_START_NAMES = {
+    "chrome": "chrome",
+    "spotify": "spotify",
     "vs code": "code",
     "vscode": "code",
-    "word": "winword.exe",
-    "excel": "excel.exe",
-    "powerpoint": "powerpnt.exe",
-    "chrome": "chrome.exe",
+    "word": "winword",
+    "excel": "excel",
+    "powerpoint": "powerpnt",
+    "discord": "discord",
+    "steam": "steam",
+    "whatsapp": "whatsapp",
+}
+
+# Built-in Windows tools that work with a direct exe call, no install needed
+WINDOWS_BUILTIN = {
+    "notepad": "notepad.exe",
+    "calculator": "calc.exe",
     "paint": "mspaint.exe",
     "explorer": "explorer.exe",
-    "settings": "start ms-settings:",
     "task manager": "taskmgr.exe",
+    "settings": "start ms-settings:",
 }
 
 MAC_APPS = {
@@ -48,13 +67,29 @@ FALLBACK_URLS = {
 }
 
 
+def _try_windows_start(name: str) -> bool:
+    """Uses Windows' 'start' command, which resolves installed apps via
+    the registry regardless of PATH. Returns True if it seemed to launch."""
+    try:
+        result = subprocess.run(
+            f'start "" "{name}"', shell=True, capture_output=True, timeout=5, text=True
+        )
+        return result.returncode == 0
+    except Exception:
+        return False
+
+
 def open_application(app_name: str) -> str:
     key = app_name.strip().lower()
 
     if SYSTEM == "Windows":
-        if key in WINDOWS_APPS:
+        if key in WINDOWS_START_NAMES:
+            if _try_windows_start(WINDOWS_START_NAMES[key]):
+                return f"Opened {app_name}."
+
+        if key in WINDOWS_BUILTIN:
             try:
-                subprocess.Popen(WINDOWS_APPS[key], shell=True)
+                subprocess.Popen(WINDOWS_BUILTIN[key], shell=True)
                 return f"Opened {app_name}."
             except Exception:
                 pass
@@ -76,7 +111,7 @@ def open_application(app_name: str) -> str:
 
     if key in FALLBACK_URLS:
         webbrowser.open(FALLBACK_URLS[key])
-        return f"Opened {app_name} in your browser."
+        return f"Couldn't find {app_name} installed — opened it in your browser instead."
 
     webbrowser.open(f"https://www.google.com/search?q={app_name}")
     return f"Wasn't sure what '{app_name}' is — searched it on Google."

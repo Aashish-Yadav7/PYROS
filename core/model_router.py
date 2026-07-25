@@ -120,6 +120,7 @@ class LLMRouter:
             kwargs["stream"] = True
         return provider.client.chat.completions.create(**kwargs)
 
+
     def _call_cohere(self, provider, messages):
         system_parts = [m["content"] for m in messages if m["role"] == "system"]
         preamble = "\n\n".join(system_parts)
@@ -152,6 +153,7 @@ class LLMRouter:
 
         # Wrap it to look like an OpenAI-style response so orchestrator.py
         # doesn't need to know the difference between providers.
+        
         class _FakeMessage:
             content = response.text
             tool_calls = None
