@@ -121,19 +121,34 @@ class LLMRouter:
         return provider.client.chat.completions.create(**kwargs)
 
     def _call_cohere(self, provider, messages):
-        # Cohere's SDK has a different shape — convert our standard message
-        # list into Cohere's expected format before calling.
+        system_parts = [m["content"] for m in messages if m["role"] == "system"]
+        preamble = "\n\n".join(system_parts)
+
         last_user_msg = messages[-1]["content"]
         chat_history = [
             {"role": "USER" if m["role"] == "user" else "CHATBOT", "message": m["content"]}
             for m in messages[:-1]
             if m["role"] in ("user", "assistant")
         ]
+
         response = provider.client.chat(
             model=provider.model,
             message=last_user_msg,
             chat_history=chat_history,
+            preamble=preamble,
         )
+
+        class _FakeMessage:
+            content = response.text
+            tool_calls = None
+
+        class _FakeChoice:
+            message = _FakeMessage()
+
+        class _FakeResponse:
+            choices = [_FakeChoice()]
+
+        return _FakeResponse()
 
         # Wrap it to look like an OpenAI-style response so orchestrator.py
         # doesn't need to know the difference between providers.
