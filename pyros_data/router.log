@@ -737,3 +737,202 @@
 2026-07-24 20:20:55,979 | WARNING | FAILED hpc_key2 attempt 3: Error code: 402 - {'error': {'message': 'Your account is overdue. Please check your billing details on our website.', 'type': 'insufficient_quota', 'code': 'insufficient_quota', 'param': None}}
 2026-07-24 20:20:55,979 | WARNING | GIVING UP on hpc_key2
 2026-07-24 20:20:55,981 | ERROR | All providers failed after retries. Last error: Error code: 402 - {'error': {'message': 'Your account is overdue. Please check your billing details on our website.', 'type': 'insufficient_quota', 'code': 'insufficient_quota', 'param': None}}
+2026-07-25 14:41:31,015 | INFO | CALL groq_key1 (attempt 1)
+2026-07-25 14:41:31,871 | INFO | HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 200 OK"
+2026-07-25 14:41:31,920 | INFO | SUCCESS groq_key1
+2026-07-25 14:41:31,928 | INFO | Compressed old history into a summary message.
+2026-07-25 14:41:32,623 | INFO | CALL groq_key1 (attempt 1)
+2026-07-25 14:41:33,053 | INFO | HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 200 OK"
+2026-07-25 14:41:33,057 | INFO | SUCCESS groq_key1
+2026-07-25 14:41:33,662 | INFO | CALL groq_key1 (attempt 1)
+2026-07-25 14:41:34,039 | INFO | HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 200 OK"
+2026-07-25 14:41:34,040 | INFO | SUCCESS groq_key1
+2026-07-25 14:41:34,099 | INFO | CALL groq_key1 (attempt 1)
+2026-07-25 14:41:34,500 | INFO | HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 200 OK"
+2026-07-25 14:41:34,501 | INFO | SUCCESS groq_key1
+2026-07-25 14:41:34,622 | INFO | CALL groq_key1 (attempt 1)
+2026-07-25 14:41:34,984 | INFO | HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 200 OK"
+2026-07-25 14:41:34,985 | INFO | SUCCESS groq_key1
+2026-07-25 14:41:35,211 | INFO | SKIPPED groq_key1 — locked, free in 55.8s
+2026-07-25 14:41:35,211 | INFO | CALL groq_key2 (attempt 1)
+2026-07-25 14:41:35,744 | INFO | HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 200 OK"
+2026-07-25 14:41:35,747 | INFO | SUCCESS groq_key2
+2026-07-25 14:41:36,210 | INFO | Handled request in 5.21s with 4 tool round(s)
+2026-07-25 14:41:51,013 | INFO | SKIPPED groq_key1 — locked, free in 40.0s
+2026-07-25 14:41:51,013 | INFO | CALL groq_key2 (attempt 1)
+2026-07-25 14:41:51,667 | INFO | HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 200 OK"
+2026-07-25 14:41:51,671 | INFO | SUCCESS groq_key2
+2026-07-25 14:41:51,681 | INFO | Compressed old history into a summary message.
+2026-07-25 14:41:51,816 | INFO | SKIPPED groq_key1 — locked, free in 39.2s
+2026-07-25 14:41:51,816 | INFO | CALL groq_key2 (attempt 1)
+2026-07-25 14:41:52,609 | INFO | HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 200 OK"
+2026-07-25 14:41:52,611 | INFO | SUCCESS groq_key2
+2026-07-25 14:41:52,664 | INFO | SKIPPED groq_key1 — locked, free in 38.4s
+2026-07-25 14:41:52,665 | INFO | CALL groq_key2 (attempt 1)
+2026-07-25 14:41:53,077 | INFO | HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 200 OK"
+2026-07-25 14:41:53,079 | INFO | SUCCESS groq_key2
+2026-07-25 14:41:53,486 | INFO | SKIPPED groq_key1 — locked, free in 37.5s
+2026-07-25 14:41:53,486 | INFO | CALL groq_key2 (attempt 1)
+2026-07-25 14:41:53,919 | INFO | HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 200 OK"
+2026-07-25 14:41:53,922 | INFO | SUCCESS groq_key2
+2026-07-25 14:41:53,922 | INFO | SKIPPED groq_key1 — locked, free in 37.1s
+2026-07-25 14:41:53,922 | INFO | SKIPPED groq_key2 — locked, free in 41.3s
+2026-07-25 14:41:53,922 | INFO | CALL mistral_key1 (attempt 1)
+2026-07-25 14:41:54,208 | WARNING | FAILED mistral_key1 attempt 1: 'Chat' object has no attribute 'completions'
+2026-07-25 14:41:55,209 | INFO | CALL mistral_key1 (attempt 2)
+2026-07-25 14:41:55,209 | WARNING | FAILED mistral_key1 attempt 2: 'Chat' object has no attribute 'completions'
+2026-07-25 14:41:57,217 | INFO | CALL mistral_key1 (attempt 3)
+2026-07-25 14:41:57,217 | WARNING | FAILED mistral_key1 attempt 3: 'Chat' object has no attribute 'completions'
+2026-07-25 14:41:57,217 | WARNING | GIVING UP on mistral_key1
+2026-07-25 14:41:57,217 | INFO | CALL mistral_key2 (attempt 1)
+2026-07-25 14:41:57,218 | WARNING | FAILED mistral_key2 attempt 1: 'Chat' object has no attribute 'completions'
+2026-07-25 14:41:58,220 | INFO | CALL mistral_key2 (attempt 2)
+2026-07-25 14:41:58,238 | WARNING | FAILED mistral_key2 attempt 2: 'Chat' object has no attribute 'completions'
+2026-07-25 14:42:00,239 | INFO | CALL mistral_key2 (attempt 3)
+2026-07-25 14:42:00,239 | WARNING | FAILED mistral_key2 attempt 3: 'Chat' object has no attribute 'completions'
+2026-07-25 14:42:00,239 | WARNING | GIVING UP on mistral_key2
+2026-07-25 14:42:00,240 | INFO | CALL cerebras_key1 (attempt 1)
+2026-07-25 14:42:04,450 | INFO | HTTP Request: POST https://api.cerebras.ai/v1/chat/completions "HTTP/1.1 404 Not Found"
+2026-07-25 14:42:04,453 | WARNING | FAILED cerebras_key1 attempt 1: Error code: 404 - {'message': 'Model does not exist or you do not have access to it.', 'type': 'not_found_error', 'param': 'model', 'code': 'model_not_found'}
+2026-07-25 14:42:05,454 | INFO | CALL cerebras_key1 (attempt 2)
+2026-07-25 14:42:05,836 | INFO | HTTP Request: POST https://api.cerebras.ai/v1/chat/completions "HTTP/1.1 404 Not Found"
+2026-07-25 14:42:05,878 | WARNING | FAILED cerebras_key1 attempt 2: Error code: 404 - {'message': 'Model does not exist or you do not have access to it.', 'type': 'not_found_error', 'param': 'model', 'code': 'model_not_found'}
+2026-07-25 14:42:07,879 | INFO | CALL cerebras_key1 (attempt 3)
+2026-07-25 14:42:08,258 | INFO | HTTP Request: POST https://api.cerebras.ai/v1/chat/completions "HTTP/1.1 404 Not Found"
+2026-07-25 14:42:08,259 | WARNING | FAILED cerebras_key1 attempt 3: Error code: 404 - {'message': 'Model does not exist or you do not have access to it.', 'type': 'not_found_error', 'param': 'model', 'code': 'model_not_found'}
+2026-07-25 14:42:08,259 | WARNING | GIVING UP on cerebras_key1
+2026-07-25 14:42:08,260 | INFO | CALL cerebras_key2 (attempt 1)
+2026-07-25 14:42:08,695 | INFO | HTTP Request: POST https://api.cerebras.ai/v1/chat/completions "HTTP/1.1 404 Not Found"
+2026-07-25 14:42:08,696 | WARNING | FAILED cerebras_key2 attempt 1: Error code: 404 - {'message': 'Model does not exist or you do not have access to it.', 'type': 'not_found_error', 'param': 'model', 'code': 'model_not_found'}
+2026-07-25 14:42:09,697 | INFO | CALL cerebras_key2 (attempt 2)
+2026-07-25 14:42:09,974 | INFO | HTTP Request: POST https://api.cerebras.ai/v1/chat/completions "HTTP/1.1 404 Not Found"
+2026-07-25 14:42:09,975 | WARNING | FAILED cerebras_key2 attempt 2: Error code: 404 - {'message': 'Model does not exist or you do not have access to it.', 'type': 'not_found_error', 'param': 'model', 'code': 'model_not_found'}
+2026-07-25 14:42:11,976 | INFO | CALL cerebras_key2 (attempt 3)
+2026-07-25 14:42:12,244 | INFO | HTTP Request: POST https://api.cerebras.ai/v1/chat/completions "HTTP/1.1 404 Not Found"
+2026-07-25 14:42:12,246 | WARNING | FAILED cerebras_key2 attempt 3: Error code: 404 - {'message': 'Model does not exist or you do not have access to it.', 'type': 'not_found_error', 'param': 'model', 'code': 'model_not_found'}
+2026-07-25 14:42:12,246 | WARNING | GIVING UP on cerebras_key2
+2026-07-25 14:42:12,246 | INFO | CALL openrouter_key1 (attempt 1)
+2026-07-25 14:42:13,299 | INFO | HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 404 Not Found"
+2026-07-25 14:42:13,306 | WARNING | FAILED openrouter_key1 attempt 1: Error code: 404 - {'error': {'message': 'This model is unavailable for free. The paid version is available now - use this slug instead: meta-llama/llama-3.3-70b-instruct', 'code': 404}, 'user_id': 'user_3FD8S1zT2dC1NirhuCn64eOQZgy'}
+2026-07-25 14:42:14,306 | INFO | CALL openrouter_key1 (attempt 2)
+2026-07-25 14:42:14,336 | INFO | HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 404 Not Found"
+2026-07-25 14:42:14,338 | WARNING | FAILED openrouter_key1 attempt 2: Error code: 404 - {'error': {'message': 'This model is unavailable for free. The paid version is available now - use this slug instead: meta-llama/llama-3.3-70b-instruct', 'code': 404}, 'user_id': 'user_3FD8S1zT2dC1NirhuCn64eOQZgy'}
+2026-07-25 14:42:16,339 | INFO | CALL openrouter_key1 (attempt 3)
+2026-07-25 14:42:16,653 | INFO | HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 404 Not Found"
+2026-07-25 14:42:16,654 | WARNING | FAILED openrouter_key1 attempt 3: Error code: 404 - {'error': {'message': 'This model is unavailable for free. The paid version is available now - use this slug instead: meta-llama/llama-3.3-70b-instruct', 'code': 404}, 'user_id': 'user_3FD8S1zT2dC1NirhuCn64eOQZgy'}
+2026-07-25 14:42:16,655 | WARNING | GIVING UP on openrouter_key1
+2026-07-25 14:42:16,655 | INFO | CALL openrouter_key2 (attempt 1)
+2026-07-25 14:42:17,010 | INFO | HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 404 Not Found"
+2026-07-25 14:42:17,012 | WARNING | FAILED openrouter_key2 attempt 1: Error code: 404 - {'error': {'message': 'This model is unavailable for free. The paid version is available now - use this slug instead: meta-llama/llama-3.3-70b-instruct', 'code': 404}, 'user_id': 'user_3Da1dPUkMiWhBgeGCOU0d3cuyX6'}
+2026-07-25 14:42:18,013 | INFO | CALL openrouter_key2 (attempt 2)
+2026-07-25 14:42:18,038 | INFO | HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 404 Not Found"
+2026-07-25 14:42:18,040 | WARNING | FAILED openrouter_key2 attempt 2: Error code: 404 - {'error': {'message': 'This model is unavailable for free. The paid version is available now - use this slug instead: meta-llama/llama-3.3-70b-instruct', 'code': 404}, 'user_id': 'user_3Da1dPUkMiWhBgeGCOU0d3cuyX6'}
+2026-07-25 14:42:20,041 | INFO | CALL openrouter_key2 (attempt 3)
+2026-07-25 14:42:20,062 | INFO | HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 404 Not Found"
+2026-07-25 14:42:20,063 | WARNING | FAILED openrouter_key2 attempt 3: Error code: 404 - {'error': {'message': 'This model is unavailable for free. The paid version is available now - use this slug instead: meta-llama/llama-3.3-70b-instruct', 'code': 404}, 'user_id': 'user_3Da1dPUkMiWhBgeGCOU0d3cuyX6'}
+2026-07-25 14:42:20,063 | WARNING | GIVING UP on openrouter_key2
+2026-07-25 14:42:20,064 | INFO | CALL cohere_key1 (attempt 1)
+2026-07-25 14:42:20,904 | INFO | HTTP Request: POST https://api.cohere.com/v1/chat "HTTP/1.1 404 Not Found"
+2026-07-25 14:42:20,906 | WARNING | FAILED cohere_key1 attempt 1: headers: {'access-control-expose-headers': 'X-Debug-Trace-ID', 'cache-control': 'no-cache, no-store, no-transform, must-revalidate, private, max-age=0', 'content-encoding': 'gzip', 'content-type': 'application/json', 'expires': 'Thu, 01 Jan 1970 00:00:00 GMT', 'pragma': 'no-cache', 'vary': 'Origin,Accept-Encoding', 'x-accel-expires': '0', 'x-debug-trace-id': '56a4238c08dd7f25debe6d54a1bfb632', 'x-endpoint-monthly-call-limit': '1000', 'x-trial-endpoint-call-limit': '20', 'x-trial-endpoint-call-remaining': '19', 'date': 'Sat, 25 Jul 2026 09:12:21 GMT', 'x-envoy-upstream-service-time': '16', 'server': 'envoy', 'via': '1.1 google', 'alt-svc': 'h3=":443"; ma=2592000', 'transfer-encoding': 'chunked'}, status_code: 404, body: {'id': 'bac0942c-d96f-4ba4-a85f-154f92329e2d', 'message': "model 'command-r-plus' was removed on September 15, 2025. See https://docs.cohere.com/docs/models#command for a list of models you can use instead."}
+2026-07-25 14:42:21,907 | INFO | CALL cohere_key1 (attempt 2)
+2026-07-25 14:42:22,222 | INFO | HTTP Request: POST https://api.cohere.com/v1/chat "HTTP/1.1 404 Not Found"
+2026-07-25 14:42:22,224 | WARNING | FAILED cohere_key1 attempt 2: headers: {'access-control-expose-headers': 'X-Debug-Trace-ID', 'cache-control': 'no-cache, no-store, no-transform, must-revalidate, private, max-age=0', 'content-encoding': 'gzip', 'content-type': 'application/json', 'expires': 'Thu, 01 Jan 1970 00:00:00 GMT', 'pragma': 'no-cache', 'vary': 'Origin,Accept-Encoding', 'x-accel-expires': '0', 'x-debug-trace-id': 'f71c081bf1c326a13b12477f29cbcb2b', 'x-endpoint-monthly-call-limit': '1000', 'x-trial-endpoint-call-limit': '20', 'x-trial-endpoint-call-remaining': '18', 'date': 'Sat, 25 Jul 2026 09:12:22 GMT', 'x-envoy-upstream-service-time': '16', 'server': 'envoy', 'via': '1.1 google', 'alt-svc': 'h3=":443"; ma=2592000', 'transfer-encoding': 'chunked'}, status_code: 404, body: {'id': '0d6f4c18-ceba-4a41-aa44-3856aff1d8c9', 'message': "model 'command-r-plus' was removed on September 15, 2025. See https://docs.cohere.com/docs/models#command for a list of models you can use instead."}
+2026-07-25 14:42:24,225 | INFO | CALL cohere_key1 (attempt 3)
+2026-07-25 14:42:24,557 | INFO | HTTP Request: POST https://api.cohere.com/v1/chat "HTTP/1.1 404 Not Found"
+2026-07-25 14:42:24,559 | WARNING | FAILED cohere_key1 attempt 3: headers: {'access-control-expose-headers': 'X-Debug-Trace-ID', 'cache-control': 'no-cache, no-store, no-transform, must-revalidate, private, max-age=0', 'content-encoding': 'gzip', 'content-type': 'application/json', 'expires': 'Thu, 01 Jan 1970 00:00:00 GMT', 'pragma': 'no-cache', 'vary': 'Origin,Accept-Encoding', 'x-accel-expires': '0', 'x-debug-trace-id': 'eaee640ffd08d7282dac95003ce3dd3b', 'x-endpoint-monthly-call-limit': '1000', 'x-trial-endpoint-call-limit': '20', 'x-trial-endpoint-call-remaining': '17', 'date': 'Sat, 25 Jul 2026 09:12:24 GMT', 'x-envoy-upstream-service-time': '22', 'server': 'envoy', 'via': '1.1 google', 'alt-svc': 'h3=":443"; ma=2592000', 'transfer-encoding': 'chunked'}, status_code: 404, body: {'id': '04aa49b9-44cb-4a8b-886d-9f819fb29267', 'message': "model 'command-r-plus' was removed on September 15, 2025. See https://docs.cohere.com/docs/models#command for a list of models you can use instead."}
+2026-07-25 14:42:24,560 | WARNING | GIVING UP on cohere_key1
+2026-07-25 14:42:24,560 | INFO | CALL cohere_key2 (attempt 1)
+2026-07-25 14:42:25,000 | INFO | HTTP Request: POST https://api.cohere.com/v1/chat "HTTP/1.1 404 Not Found"
+2026-07-25 14:42:25,003 | WARNING | FAILED cohere_key2 attempt 1: headers: {'access-control-expose-headers': 'X-Debug-Trace-ID', 'cache-control': 'no-cache, no-store, no-transform, must-revalidate, private, max-age=0', 'content-encoding': 'gzip', 'content-type': 'application/json', 'expires': 'Thu, 01 Jan 1970 00:00:00 GMT', 'pragma': 'no-cache', 'vary': 'Origin,Accept-Encoding', 'x-accel-expires': '0', 'x-debug-trace-id': 'e9f9284644127c38d5dbd304b6a80528', 'x-endpoint-monthly-call-limit': '1000', 'x-trial-endpoint-call-limit': '20', 'x-trial-endpoint-call-remaining': '19', 'date': 'Sat, 25 Jul 2026 09:12:25 GMT', 'x-envoy-upstream-service-time': '19', 'server': 'envoy', 'via': '1.1 google', 'alt-svc': 'h3=":443"; ma=2592000', 'transfer-encoding': 'chunked'}, status_code: 404, body: {'id': '0bb9f03a-0e4c-46a6-9b0a-43e5f9ea480c', 'message': "model 'command-r-plus' was removed on September 15, 2025. See https://docs.cohere.com/docs/models#command for a list of models you can use instead."}
+2026-07-25 14:42:26,003 | INFO | CALL cohere_key2 (attempt 2)
+2026-07-25 14:42:26,321 | INFO | HTTP Request: POST https://api.cohere.com/v1/chat "HTTP/1.1 404 Not Found"
+2026-07-25 14:42:26,322 | WARNING | FAILED cohere_key2 attempt 2: headers: {'access-control-expose-headers': 'X-Debug-Trace-ID', 'cache-control': 'no-cache, no-store, no-transform, must-revalidate, private, max-age=0', 'content-encoding': 'gzip', 'content-type': 'application/json', 'expires': 'Thu, 01 Jan 1970 00:00:00 GMT', 'pragma': 'no-cache', 'vary': 'Origin,Accept-Encoding', 'x-accel-expires': '0', 'x-debug-trace-id': 'c6b5112da2dd4de7d6e7c8896e4e9d0a', 'x-endpoint-monthly-call-limit': '1000', 'x-trial-endpoint-call-limit': '20', 'x-trial-endpoint-call-remaining': '18', 'date': 'Sat, 25 Jul 2026 09:12:26 GMT', 'x-envoy-upstream-service-time': '15', 'server': 'envoy', 'via': '1.1 google', 'alt-svc': 'h3=":443"; ma=2592000', 'transfer-encoding': 'chunked'}, status_code: 404, body: {'id': '638b9f73-26c3-4cc1-8e4a-27bbea299fe1', 'message': "model 'command-r-plus' was removed on September 15, 2025. See https://docs.cohere.com/docs/models#command for a list of models you can use instead."}
+2026-07-25 14:42:28,323 | INFO | CALL cohere_key2 (attempt 3)
+2026-07-25 14:42:28,653 | INFO | HTTP Request: POST https://api.cohere.com/v1/chat "HTTP/1.1 404 Not Found"
+2026-07-25 14:42:28,655 | WARNING | FAILED cohere_key2 attempt 3: headers: {'access-control-expose-headers': 'X-Debug-Trace-ID', 'cache-control': 'no-cache, no-store, no-transform, must-revalidate, private, max-age=0', 'content-encoding': 'gzip', 'content-type': 'application/json', 'expires': 'Thu, 01 Jan 1970 00:00:00 GMT', 'pragma': 'no-cache', 'vary': 'Origin,Accept-Encoding', 'x-accel-expires': '0', 'x-debug-trace-id': 'b34ab0ea9b9009dca67ba6c126a3d01d', 'x-endpoint-monthly-call-limit': '1000', 'x-trial-endpoint-call-limit': '20', 'x-trial-endpoint-call-remaining': '17', 'date': 'Sat, 25 Jul 2026 09:12:28 GMT', 'x-envoy-upstream-service-time': '9', 'server': 'envoy', 'via': '1.1 google', 'alt-svc': 'h3=":443"; ma=2592000', 'transfer-encoding': 'chunked'}, status_code: 404, body: {'id': '3d1ad9fc-a561-4890-b157-91f55a60d988', 'message': "model 'command-r-plus' was removed on September 15, 2025. See https://docs.cohere.com/docs/models#command for a list of models you can use instead."}
+2026-07-25 14:42:28,656 | WARNING | GIVING UP on cohere_key2
+2026-07-25 14:42:28,656 | INFO | CALL hpc_key1 (attempt 1)
+2026-07-25 14:42:30,185 | INFO | HTTP Request: POST https://api.hpc-ai.com/inference/v1/chat/completions "HTTP/1.1 402 Payment Required"
+2026-07-25 14:42:30,189 | WARNING | FAILED hpc_key1 attempt 1: Error code: 402 - {'error': {'param': None, 'message': 'Your account is overdue. Please check your billing details on our website.', 'type': 'insufficient_quota', 'code': 'insufficient_quota'}}
+2026-07-25 14:42:31,190 | INFO | CALL hpc_key1 (attempt 2)
+2026-07-25 14:42:31,480 | INFO | HTTP Request: POST https://api.hpc-ai.com/inference/v1/chat/completions "HTTP/1.1 402 Payment Required"
+2026-07-25 14:42:31,483 | WARNING | FAILED hpc_key1 attempt 2: Error code: 402 - {'error': {'param': None, 'message': 'Your account is overdue. Please check your billing details on our website.', 'type': 'insufficient_quota', 'code': 'insufficient_quota'}}
+2026-07-25 14:42:33,484 | INFO | CALL hpc_key1 (attempt 3)
+2026-07-25 14:42:33,774 | INFO | HTTP Request: POST https://api.hpc-ai.com/inference/v1/chat/completions "HTTP/1.1 402 Payment Required"
+2026-07-25 14:42:33,775 | WARNING | FAILED hpc_key1 attempt 3: Error code: 402 - {'error': {'param': None, 'message': 'Your account is overdue. Please check your billing details on our website.', 'type': 'insufficient_quota', 'code': 'insufficient_quota'}}
+2026-07-25 14:42:33,776 | WARNING | GIVING UP on hpc_key1
+2026-07-25 14:42:33,776 | INFO | CALL hpc_key2 (attempt 1)
+2026-07-25 14:42:34,489 | INFO | HTTP Request: POST https://api.hpc-ai.com/inference/v1/chat/completions "HTTP/1.1 402 Payment Required"
+2026-07-25 14:42:34,490 | WARNING | FAILED hpc_key2 attempt 1: Error code: 402 - {'error': {'param': None, 'message': 'Your account is overdue. Please check your billing details on our website.', 'type': 'insufficient_quota', 'code': 'insufficient_quota'}}
+2026-07-25 14:42:35,491 | INFO | CALL hpc_key2 (attempt 2)
+2026-07-25 14:42:35,661 | INFO | HTTP Request: POST https://api.hpc-ai.com/inference/v1/chat/completions "HTTP/1.1 402 Payment Required"
+2026-07-25 14:42:35,662 | WARNING | FAILED hpc_key2 attempt 2: Error code: 402 - {'error': {'param': None, 'message': 'Your account is overdue. Please check your billing details on our website.', 'type': 'insufficient_quota', 'code': 'insufficient_quota'}}
+2026-07-25 14:42:37,663 | INFO | CALL hpc_key2 (attempt 3)
+2026-07-25 14:42:37,842 | INFO | HTTP Request: POST https://api.hpc-ai.com/inference/v1/chat/completions "HTTP/1.1 402 Payment Required"
+2026-07-25 14:42:37,843 | WARNING | FAILED hpc_key2 attempt 3: Error code: 402 - {'error': {'type': 'insufficient_quota', 'code': 'insufficient_quota', 'param': None, 'message': 'Your account is overdue. Please check your billing details on our website.'}}
+2026-07-25 14:42:37,844 | WARNING | GIVING UP on hpc_key2
+2026-07-25 14:42:37,844 | ERROR | All providers failed after retries. Last error: Error code: 402 - {'error': {'type': 'insufficient_quota', 'code': 'insufficient_quota', 'param': None, 'message': 'Your account is overdue. Please check your billing details on our website.'}}
+2026-07-25 14:42:37,844 | WARNING | Judge pass skipped due to error: All providers failed after retries. Last error: Error code: 402 - {'error': {'type': 'insufficient_quota', 'code': 'insufficient_quota', 'param': None, 'message': 'Your account is overdue. Please check your billing details on our website.'}}
+2026-07-25 14:42:38,807 | INFO | Handled request in 47.81s with 2 tool round(s)
+2026-07-25 14:43:01,994 | INFO | CALL groq_key1 (attempt 1)
+2026-07-25 14:43:02,556 | INFO | HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 200 OK"
+2026-07-25 14:43:02,559 | INFO | SUCCESS groq_key1
+2026-07-25 14:43:02,571 | INFO | Compressed old history into a summary message.
+2026-07-25 14:43:02,636 | INFO | CALL groq_key1 (attempt 1)
+2026-07-25 14:43:03,338 | INFO | HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 200 OK"
+2026-07-25 14:43:03,340 | INFO | SUCCESS groq_key1
+2026-07-25 14:43:03,575 | INFO | CALL groq_key1 (attempt 1)
+2026-07-25 14:43:04,120 | INFO | HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 200 OK"
+2026-07-25 14:43:04,122 | INFO | SUCCESS groq_key1
+2026-07-25 14:43:04,123 | INFO | CALL groq_key1 (attempt 1)
+2026-07-25 14:43:04,479 | INFO | HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 200 OK"
+2026-07-25 14:43:04,483 | INFO | SUCCESS groq_key1
+2026-07-25 14:43:04,722 | INFO | CALL groq_key1 (attempt 1)
+2026-07-25 14:43:05,470 | INFO | HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 200 OK"
+2026-07-25 14:43:05,472 | INFO | SUCCESS groq_key1
+2026-07-25 14:43:05,472 | INFO | SKIPPED groq_key1 — locked, free in 56.5s
+2026-07-25 14:43:05,472 | INFO | CALL groq_key2 (attempt 1)
+2026-07-25 14:43:06,006 | INFO | HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 200 OK"
+2026-07-25 14:43:06,007 | INFO | SUCCESS groq_key2
+2026-07-25 14:43:06,189 | INFO | Handled request in 4.21s with 3 tool round(s)
+2026-07-25 14:44:03,807 | INFO | CALL groq_key1 (attempt 1)
+2026-07-25 14:44:04,278 | INFO | HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 200 OK"
+2026-07-25 14:44:04,281 | INFO | SUCCESS groq_key1
+2026-07-25 14:44:04,297 | INFO | Compressed old history into a summary message.
+2026-07-25 14:44:04,385 | INFO | CALL groq_key1 (attempt 1)
+2026-07-25 14:44:04,719 | INFO | HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 200 OK"
+2026-07-25 14:44:04,720 | INFO | SUCCESS groq_key1
+2026-07-25 14:44:04,804 | INFO | CALL groq_key1 (attempt 1)
+2026-07-25 14:44:05,246 | INFO | HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 200 OK"
+2026-07-25 14:44:05,248 | INFO | SUCCESS groq_key1
+2026-07-25 14:44:05,364 | INFO | CALL groq_key1 (attempt 1)
+2026-07-25 14:44:05,809 | INFO | HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 200 OK"
+2026-07-25 14:44:05,812 | INFO | SUCCESS groq_key1
+2026-07-25 14:44:06,130 | INFO | CALL groq_key1 (attempt 1)
+2026-07-25 14:44:06,518 | INFO | HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 200 OK"
+2026-07-25 14:44:06,520 | INFO | SUCCESS groq_key1
+2026-07-25 14:44:06,570 | INFO | SKIPPED groq_key1 — locked, free in 57.2s
+2026-07-25 14:44:06,571 | INFO | CALL groq_key2 (attempt 1)
+2026-07-25 14:44:07,171 | INFO | HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 200 OK"
+2026-07-25 14:44:07,173 | INFO | SUCCESS groq_key2
+2026-07-25 14:44:07,629 | INFO | Handled request in 3.84s with 4 tool round(s)
+2026-07-25 14:45:02,442 | INFO | SKIPPED groq_key1 — locked, free in 1.4s
+2026-07-25 14:45:02,442 | INFO | CALL groq_key2 (attempt 1)
+2026-07-25 14:45:02,941 | INFO | HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 200 OK"
+2026-07-25 14:45:02,943 | INFO | SUCCESS groq_key2
+2026-07-25 14:45:02,960 | INFO | Compressed old history into a summary message.
+2026-07-25 14:45:03,044 | INFO | SKIPPED groq_key1 — locked, free in 0.8s
+2026-07-25 14:45:03,044 | INFO | CALL groq_key2 (attempt 1)
+2026-07-25 14:45:03,584 | INFO | HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 200 OK"
+2026-07-25 14:45:03,588 | INFO | SUCCESS groq_key2
+2026-07-25 14:45:03,698 | INFO | SKIPPED groq_key1 — locked, free in 0.1s
+2026-07-25 14:45:03,698 | INFO | CALL groq_key2 (attempt 1)
+2026-07-25 14:45:04,160 | INFO | HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 200 OK"
+2026-07-25 14:45:04,163 | INFO | SUCCESS groq_key2
+2026-07-25 14:45:04,422 | INFO | CALL groq_key1 (attempt 1)
+2026-07-25 14:45:04,830 | INFO | HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 200 OK"
+2026-07-25 14:45:04,832 | INFO | SUCCESS groq_key1
+2026-07-25 14:45:04,832 | INFO | CALL groq_key1 (attempt 1)
+2026-07-25 14:45:05,225 | INFO | HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 200 OK"
+2026-07-25 14:45:05,228 | INFO | SUCCESS groq_key1
+2026-07-25 14:45:05,442 | INFO | Handled request in 3.01s with 2 tool round(s)
