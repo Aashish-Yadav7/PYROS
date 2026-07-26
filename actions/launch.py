@@ -1,17 +1,9 @@
 """
 actions/launch.py
 
-Opens applications on your computer. Uses three layers, in order:
-1. Try Windows' own "start" command, which looks up installed apps via
-   the registry (App Paths) — this finds Chrome, Spotify, etc. correctly
-   even when they're not on your system PATH, as long as they're installed
-   normally.
-2. Try launching the raw .exe name directly (works for built-in Windows
-   tools like notepad.exe, calc.exe).
-3. Fall back to opening the app's website, or a Google search as a last resort.
-
-This means once you install Spotify (or any other app), it should just work —
-no code changes needed, because step 1 finds installed apps automatically.
+Opens applications. On Windows, tries the 'start' command first (finds
+installed apps via the registry regardless of PATH), then built-in exe
+names, then falls back to the app's website, then a Google search.
 """
 import subprocess
 import webbrowser
@@ -19,8 +11,6 @@ import platform
 
 SYSTEM = platform.system()
 
-# Preferred "start" names — these match what Windows registers installed
-# apps under. Add more here as you install new apps.
 WINDOWS_START_NAMES = {
     "chrome": "chrome",
     "spotify": "spotify",
@@ -34,7 +24,6 @@ WINDOWS_START_NAMES = {
     "whatsapp": "whatsapp",
 }
 
-# Built-in Windows tools that work with a direct exe call, no install needed
 WINDOWS_BUILTIN = {
     "notepad": "notepad.exe",
     "calculator": "calc.exe",
@@ -68,8 +57,6 @@ FALLBACK_URLS = {
 
 
 def _try_windows_start(name: str) -> bool:
-    """Uses Windows' 'start' command, which resolves installed apps via
-    the registry regardless of PATH. Returns True if it seemed to launch."""
     try:
         result = subprocess.run(
             f'start "" "{name}"', shell=True, capture_output=True, timeout=5, text=True

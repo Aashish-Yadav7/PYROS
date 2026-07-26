@@ -1,8 +1,12 @@
 venv/
 .env
+credentials.json
+pyros_data/token.json
+pyros_data/*.db
+pyros_data/*.log
+pyros_data/vector_db/
 __pycache__/
 *.pyc
 .vscode/
-*.db
-credentials.json
-pyros_data/token.json
+node_modules/
+temp_face.jpg

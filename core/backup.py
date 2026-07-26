@@ -1,15 +1,7 @@
 """
 core/backup.py
 
-Full backup/restore for PYROS's memory — people, feedback, and chat history
-(SQLite side). Vector embeddings regenerate automatically from source docs,
-so we don't need to back those up separately; if you restore an old backup,
-just re-run add_document() on your PDFs to rebuild the vector index.
-
-Usage:
-    from core.backup import create_backup, restore_backup
-    create_backup()                        # writes pyros_data/backup_<timestamp>.json
-    restore_backup("pyros_data/backup_2026-07-22.json")
+Full backup/restore for PYROS's structured memory.
 """
 import json
 import datetime
@@ -20,7 +12,6 @@ BACKUP_DIR = "pyros_data/backups"
 
 
 def create_backup() -> str:
-    """Dumps all structured memory (people, feedback, chat) to a timestamped JSON file."""
     os.makedirs(BACKUP_DIR, exist_ok=True)
     timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
     filepath = os.path.join(BACKUP_DIR, f"backup_{timestamp}.json")
@@ -39,10 +30,6 @@ def create_backup() -> str:
 
 
 def restore_backup(filepath: str, wipe_existing: bool = False):
-    """
-    Restores people and conversation history from a backup file.
-    Set wipe_existing=True to clear current data first (otherwise it merges).
-    """
     with open(filepath, "r", encoding="utf-8") as f:
         data = json.load(f)
 
@@ -50,10 +37,7 @@ def restore_backup(filepath: str, wipe_existing: bool = False):
         history.clear_conversations()
 
     for person in data.get("people", []):
-        history.add_person(
-            name=person["name"],
-            notes=person.get("notes", ""),
-        )
+        history.add_person(name=person["name"], notes=person.get("notes", ""))
 
     for msg in data.get("conversations", []):
         history.add_message(role=msg["role"], content=msg["content"])
@@ -65,7 +49,6 @@ def restore_backup(filepath: str, wipe_existing: bool = False):
 
 
 def list_backups() -> list:
-    """Returns available backup files, newest first — useful for a 'restore from...' menu in the UI."""
     if not os.path.exists(BACKUP_DIR):
         return []
     files = [f for f in os.listdir(BACKUP_DIR) if f.endswith(".json")]

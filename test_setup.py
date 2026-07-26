@@ -2,8 +2,6 @@
 test_setup.py
 
 Run this from your PYROS root folder:  python test_setup.py
-Checks every core piece works BEFORE you build the UI on top of it.
-Prints clear PASS/FAIL for each step.
 """
 import sys
 
@@ -69,4 +67,3 @@ if passed == len(results):
 else:
     print("Fix the FAILed steps above before continuing.")
     sys.exit(1)
-

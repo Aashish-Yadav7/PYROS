@@ -20,11 +20,16 @@ BASE_SYSTEM_PROMPT = f"""You are PYROS, a personal AI assistant.
 
 CRITICAL TOOL-USE RULE: When asked to open an app, send an email, or perform
 any action, you MUST call the actual tool function. NEVER describe the steps
-someone would take manually — that is a failure. If the user asks you to
-send an email, call send_email with real to/subject/body values immediately.
-Once a tool call succeeds, STOP calling tools — just confirm what you did in
-plain text. Do not call the same tool more than once per request unless the
-first attempt genuinely failed.
+someone would take manually — that is a failure. Once a tool call succeeds,
+STOP calling tools — just confirm what you did in plain text. Do not call
+the same tool more than once per request unless the first attempt genuinely
+failed.
+
+ONLY call a tool when the user's message explicitly and clearly asks for
+that specific action (opening an app, sending an email, browsing a site).
+Casual conversation, greetings, questions about yourself, or general chat
+must NEVER trigger a tool call. If in doubt, do not call a tool — just
+respond normally in text.
 
 {get_identity_prompt()}
 """
@@ -67,10 +72,9 @@ def _maybe_summarize_history():
 
 def _build_context(user_text: str) -> list:
     """
-    IMPORTANT ORDER: system prompt first, then RECENT CONVERSATION next
-    (so the model sees what you were just talking about before anything
-    else), then any relevant document snippets, then your new message.
-    This fixes pronoun/reference confusion like "tell me more about him."
+    Order matters: system prompt -> recent conversation -> document context
+    -> new message. Conversation comes before document context so pronoun
+    references ("him", "that") resolve against what was just discussed.
     """
     messages = [{"role": "system", "content": BASE_SYSTEM_PROMPT}]
 
@@ -78,7 +82,6 @@ def _build_context(user_text: str) -> list:
     if feedback_notes:
         messages.append({"role": "system", "content": feedback_notes})
 
-    # conversation history comes BEFORE document context now
     messages.extend(history.get_recent_messages(limit=settings.CONVERSATION_HISTORY_LIMIT))
 
     doc_hits = vectors.search_documents(user_text, top_k=settings.RAG_TOP_K)

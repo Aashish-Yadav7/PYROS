@@ -10,10 +10,6 @@ URL_PATTERN = re.compile(r"^https?://|^www\.")
 
 
 def open_url(query: str) -> str:
-    """
-    If query looks like a real URL, opens it directly.
-    Otherwise treats it as a search term and opens a Google search for it.
-    """
     query = query.strip()
 
     if URL_PATTERN.match(query):
@@ -33,7 +29,7 @@ TOOL_SCHEMA = {
         "parameters": {
             "type": "object",
             "properties": {
-                "query": {"type": "string", "description": "A URL like 'youtube.com', or a search topic like 'weather in Tokyo'"}
+                "query": {"type": "string", "description": "A URL like 'youtube.com', or a search topic"}
             },
             "required": ["query"],
         },

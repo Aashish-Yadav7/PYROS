@@ -1,24 +1,10 @@
 """
 actions/mail.py
 
-Sends real emails through YOUR Gmail account using Google's official API.
-
-ONE-TIME SETUP REQUIRED before this works (takes ~5 minutes):
-1. Go to https://console.cloud.google.com/
-2. Create a new project (any name, e.g. "PYROS")
-3. Enable the "Gmail API" for that project (search it in the top search bar)
-4. Go to "Credentials" -> "Create Credentials" -> "OAuth client ID"
-   - Application type: Desktop app
-   - Name: PYROS
-5. Download the resulting JSON file, rename it to credentials.json,
-   and place it in your PYROS project root (same level as main.py)
-6. Add credentials.json to .gitignore immediately — this file is sensitive,
-   just like your API keys, and must never be committed to GitHub
-
-The FIRST time you send an email, a browser window will pop up asking you
-to log into your Google account and approve access — this is normal and
-only happens once. After that, a token.json file is saved locally so you
-won't need to log in again.
+Sends real emails through the user's Gmail account via the Gmail API.
+Requires credentials.json in the project root (see setup instructions
+given separately) and the account added as a test user in Google Cloud
+Console while the app is unverified.
 """
 import os
 import base64
@@ -46,8 +32,7 @@ def _get_gmail_service():
         else:
             if not os.path.exists(CREDENTIALS_FILE):
                 raise FileNotFoundError(
-                    "credentials.json not found. See the setup instructions "
-                    "at the top of actions/mail.py to get this file from Google Cloud Console."
+                    "credentials.json not found in project root. Gmail sending is not set up yet."
                 )
             flow = InstalledAppFlow.from_client_secrets_file(CREDENTIALS_FILE, SCOPES)
             creds = flow.run_local_server(port=0)
@@ -59,7 +44,6 @@ def _get_gmail_service():
 
 
 def send_email(to: str, subject: str, body: str) -> str:
-    """Sends a real email through the user's Gmail account."""
     try:
         service = _get_gmail_service()
 

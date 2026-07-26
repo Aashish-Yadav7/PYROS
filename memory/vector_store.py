@@ -2,13 +2,6 @@
 memory/vector_store.py
 
 Semantic/vector search using ChromaDB. Local only: pyros_data/vector_db/
-
-New in this version:
-- delete_document(): remove all chunks belonging to a specific file
-  (e.g. if you re-upload an updated PDF, clear the old version first)
-- collection_stats(): counts of stored chunks, for a UI dashboard
-- duplicate check before adding, using a hash of the text, so re-uploading
-  the same PDF twice doesn't create duplicate memory entries
 """
 import chromadb
 from chromadb.utils import embedding_functions
@@ -47,14 +40,13 @@ def chunk_text(text: str, chunk_size: int = 500, overlap: int = 50) -> list:
 
 
 def add_document(text: str, source_file: str, extra_metadata: dict = None) -> int:
-    """Chunks a document and stores each chunk, skipping exact duplicates."""
     chunks = chunk_text(text)
     added = 0
     for i, chunk in enumerate(chunks):
         chunk_hash = _hash_text(chunk)
         existing = _documents_collection.get(where={"chunk_hash": chunk_hash})
         if existing["ids"]:
-            continue  # already stored, skip to save space and avoid duplicate hits
+            continue
 
         metadata = {"source_file": source_file, "chunk_index": i, "chunk_hash": chunk_hash}
         if extra_metadata:
@@ -69,7 +61,6 @@ def add_document(text: str, source_file: str, extra_metadata: dict = None) -> in
 
 
 def delete_document(source_file: str):
-    """Removes every chunk belonging to one file — use before re-adding an updated version."""
     _documents_collection.delete(where={"source_file": source_file})
 
 
@@ -100,7 +91,6 @@ def re_rank(candidates: list, keep_top: int = 3) -> list:
 
 
 def collection_stats() -> dict:
-    """Useful for a small dashboard: how much is stored in memory right now."""
     return {
         "document_chunks": _documents_collection.count(),
         "conversation_snippets": _conversations_collection.count(),

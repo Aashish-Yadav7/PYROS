@@ -3,13 +3,6 @@ memory/history_store.py
 
 Structured memory: conversations, people, and feedback. SQLite, local file
 at pyros_data/history.db.
-
-New in this version:
-- keyword search across past conversations (fast, exact-text — complements
-  the vector store's meaning-based search)
-- export conversation history to a readable text file (backup/audit)
-- tagging messages (e.g. "gmail", "reminder") for later filtering
-- person "last_seen" tracking, useful once face recognition is wired in
 """
 import sqlite3
 import uuid

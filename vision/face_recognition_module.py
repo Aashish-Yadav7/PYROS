@@ -1,44 +1,25 @@
 """
-vision/face_recognition.py
+vision/face_recognition_module.py
 
-Face recognition — the realistic "neural network" piece. This does NOT
-train a new network from scratch; it uses a pretrained face-embedding
-network (via the `face_recognition` library, built on dlib's ResNet).
-
-How it actually works:
-1. A photo of a face goes through the neural network, which outputs
-   128 numbers (a "face embedding") — a numeric fingerprint of that face.
-2. To recognize someone, we compare a new face's 128 numbers against
-   everyone stored in memory, using distance between the number-lists.
-3. Closest match under a threshold = recognized. No match = unknown person.
-
-This connects directly to memory/history_store.py's face_embedding column.
+Face recognition using a pretrained face-embedding neural network.
 """
 import face_recognition
 import numpy as np
 import pickle
 import memory.history_store as history
 
-MATCH_THRESHOLD = 0.6  # lower = stricter matching, 0.6 is the standard default
+MATCH_THRESHOLD = 0.6
 
 
 def encode_face_from_image(image_path: str):
-    """
-    Loads an image file and returns its face embedding (128 numbers).
-    Returns None if no face is found in the image.
-    """
     image = face_recognition.load_image_file(image_path)
     encodings = face_recognition.face_encodings(image)
     if not encodings:
         return None
-    return encodings[0]  # assumes one main face per photo
+    return encodings[0]
 
 
 def encode_face_from_frame(frame):
-    """
-    Same as above, but takes a live webcam frame (numpy array) instead
-    of a file path — used for real-time recognition.
-    """
     encodings = face_recognition.face_encodings(frame)
     if not encodings:
         return None
@@ -46,24 +27,15 @@ def encode_face_from_frame(frame):
 
 
 def register_person(name: str, image_path: str, notes: str = "") -> bool:
-    """
-    Learns a new person: encodes their face and stores it in memory
-    under their name. Returns True if successful.
-    """
     encoding = encode_face_from_image(image_path)
     if encoding is None:
         return False
-
     embedding_bytes = pickle.dumps(encoding)
     history.add_person(name=name, notes=notes, face_embedding=embedding_bytes)
     return True
 
 
 def identify_face(encoding) -> dict:
-    """
-    Compares a face encoding against everyone stored in memory.
-    Returns {"name": str, "confidence": float} or {"name": None} if unknown.
-    """
     people = history.get_all_people()
     known_encodings = []
     known_names = []
@@ -92,7 +64,6 @@ def identify_face(encoding) -> dict:
 
 
 def identify_from_image(image_path: str) -> dict:
-    """Convenience wrapper: photo file -> identification result, in one call."""
     encoding = encode_face_from_image(image_path)
     if encoding is None:
         return {"name": None, "confidence": 0.0, "error": "No face detected in image"}
