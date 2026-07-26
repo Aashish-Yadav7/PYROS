@@ -6,7 +6,7 @@ Opens a specific URL, or searches Google if given a topic instead of a link.
 import webbrowser
 import re
 
-URL_PATTERN = re.compile(r"^https?://|^www\.")
+URL_PATTERN = re.compile(r"^https?://|^www\.|^[\w\-]+\.(com|org|net|io|co|dev)(/.*)?$")
 
 
 def open_url(query: str) -> str:
