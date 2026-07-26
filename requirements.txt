@@ -1,0 +1,45 @@
+# --- Core LLM providers ---
+groq
+openai
+mistralai
+cohere
+
+# --- Memory / Vector DB ---
+chromadb
+sentence-transformers
+
+# --- PDF & documents ---
+pdfplumber
+PyPDF2
+PyMuPDF
+python-docx
+
+# --- Vision ---
+face_recognition
+opencv-python
+numpy
+pillow
+
+# --- Voice ---
+SpeechRecognition
+pyttsx3
+edge-tts
+pyaudio
+
+# --- GUI ---
+PyQt6
+
+# --- Automation ---
+pyautogui
+pygetwindow
+keyboard
+pywin32
+
+# --- Gmail ---
+google-api-python-client
+google-auth-httplib2
+google-auth-oauthlib
+
+# --- Utilities ---
+python-dotenv
+requests
