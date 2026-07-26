@@ -11,6 +11,8 @@ Features:
 4. Local logging (pyros_data/router.log)
 5. Timeout protection
 6. status() health check
+7. chat_reliable_only() — restricts to Groq+Cerebras only, used for
+   identity questions where instruction-following matters most
 """
 import os
 import time
@@ -94,12 +96,12 @@ class LLMRouter:
             kwargs["stream"] = True
         return provider.client.chat.completions.create(**kwargs)
 
-    def chat(self, messages: list, tools: list = None, stream: bool = False):
+    def _chat_with_providers(self, provider_list: list, messages: list, tools: list = None, stream: bool = False):
         soonest_wait = None
         last_error = None
         any_available = False
 
-        for provider in self.providers:
+        for provider in provider_list:
             if not provider.is_available():
                 wait = provider.seconds_until_free()
                 soonest_wait = wait if soonest_wait is None else min(soonest_wait, wait)
@@ -129,15 +131,34 @@ class LLMRouter:
         if not any_available:
             wait_msg = f"Try again in about {int(soonest_wait)} seconds." if soonest_wait else ""
             msg = (
-                f"LOCK ENGAGED: all providers are at the "
+                f"LOCK ENGAGED: all providers in this set are at the "
                 f"{settings.MAX_REQUESTS_PER_MINUTE}-requests-per-minute limit. {wait_msg}"
             )
             logger.error(msg)
             raise RuntimeError(msg)
 
-        msg = f"All providers failed after retries. Last error: {last_error}"
+        msg = f"All providers in this set failed after retries. Last error: {last_error}"
         logger.error(msg)
         raise RuntimeError(msg)
+
+    def chat(self, messages: list, tools: list = None, stream: bool = False):
+        """Uses all 8 providers/keys, in priority order."""
+        return self._chat_with_providers(self.providers, messages, tools, stream)
+
+    def chat_reliable_only(self, messages: list, tools: list = None):
+        """
+        Restricted to Groq + Cerebras only (the 4 most instruction-compliant
+        keys). Used for identity questions and anything where consistent
+        adherence to system instructions matters more than raw availability.
+        Falls back to the full provider list only if all reliable ones
+        are currently rate-limited.
+        """
+        reliable = self.providers[:4]
+        try:
+            return self._chat_with_providers(reliable, messages, tools)
+        except RuntimeError:
+            logger.warning("Reliable providers exhausted, falling back to full list for this call.")
+            return self.chat(messages, tools=tools)
 
     def status(self) -> dict:
         return {
