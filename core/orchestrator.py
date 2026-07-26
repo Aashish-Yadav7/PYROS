@@ -4,6 +4,7 @@ core/orchestrator.py
 The brain. Coordinates memory, RAG, tools, and the model router.
 """
 import json
+import re
 import time
 import logging
 from core.model_router import LLMRouter
@@ -38,6 +39,19 @@ MAX_TOOL_ROUNDS = 4
 SUMMARIZE_AFTER = 30
 JUDGE_ENABLED = True
 
+IDENTITY_QUESTION_PATTERNS = [
+    r"\bwho (made|created|built|developed) you\b",
+    r"\bwho('?s| is) your creator\b",
+    r"\bwhat('?s| is) your name\b",
+    r"\bwho are you\b",
+    r"\btell me (more )?about (him|aashish|your creator)\b",
+]
+
+
+def _is_identity_question(text: str) -> bool:
+    text = text.lower()
+    return any(re.search(p, text) for p in IDENTITY_QUESTION_PATTERNS)
+
 
 def _get_feedback_notes() -> str:
     mistakes = history.get_negative_feedback_examples(limit=5)
@@ -71,11 +85,6 @@ def _maybe_summarize_history():
 
 
 def _build_context(user_text: str) -> list:
-    """
-    Order matters: system prompt -> recent conversation -> document context
-    -> new message. Conversation comes before document context so pronoun
-    references ("him", "that") resolve against what was just discussed.
-    """
     messages = [{"role": "system", "content": BASE_SYSTEM_PROMPT}]
 
     feedback_notes = _get_feedback_notes()
@@ -132,8 +141,16 @@ def run(user_text: str, tools: list = None, tool_functions: dict = None, use_jud
     tool_call_count = 0
     reply_text = "I hit my tool-use safety limit for this request — here's what I have so far."
 
+    use_reliable_only = _is_identity_question(user_text)
+
     for _ in range(MAX_TOOL_ROUNDS):
-        response = router.chat(messages, tools=tools)
+        if use_reliable_only and tool_call_count == 0:
+            # Identity questions: only use Groq/Cerebras (most instruction-
+            # compliant) and skip tools entirely — this is never an action request.
+            response = router.chat_reliable_only(messages)
+        else:
+            response = router.chat(messages, tools=tools)
+
         msg = response.choices[0].message
 
         if getattr(msg, "tool_calls", None) and tool_functions:
