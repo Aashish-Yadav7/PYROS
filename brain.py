@@ -7,11 +7,16 @@ Primary provider: Groq (fast, free tier generous).
 If Groq fails on both keys, you can extend this to fall back to Mistral, etc.
 """
 
+import re
 from groq import Groq
 import config
+from identity import CREATOR
 from personality import get_system_prompt
 
 MODEL_NAME = "llama-3.3-70b-versatile"  # good general-purpose Groq model
+
+# Matches things like "call me Boss", "call me sir", "call me Aashish"
+_CALL_ME_PATTERN = re.compile(r"call me (\w+)", flags=re.IGNORECASE)
 
 
 def _build_client() -> Groq:
@@ -19,13 +24,20 @@ def _build_client() -> Groq:
     return Groq(api_key=key)
 
 
-def ask_pyros(user_message: str, chat_history: list) -> str:
+def detect_address_preference(user_message: str) -> str | None:
+    """If the user says 'call me X', return X. Otherwise return None."""
+    match = _CALL_ME_PATTERN.search(user_message)
+    return match.group(1) if match else None
+
+
+def ask_pyros(user_message: str, chat_history: list, preferred_address: str | None) -> str:
     """
     user_message: latest thing the user typed
     chat_history: list of {"role": "user"/"assistant", "content": "..."} dicts
+    preferred_address: what to call the user (e.g. "Boss"), or None if not set yet
     Returns Pyros's reply as a string.
     """
-    messages = [{"role": "system", "content": get_system_prompt()}]
+    messages = [{"role": "system", "content": get_system_prompt(preferred_address)}]
     messages.extend(chat_history)
     messages.append({"role": "user", "content": user_message})
 
@@ -56,13 +68,57 @@ def ask_pyros(user_message: str, chat_history: list) -> str:
 
 # --- Quick manual test ---
 if __name__ == "__main__":
-    history = []
-    print("Pyros brain test. Type 'quit' to stop.\n")
+    import memory
+
+    history = memory.load_history()
+    user_name = memory.get_user_name()
+    preferred_address = memory.get_preferred_address()
+
+    print("=" * 50)
+    print(" PYROS")
+    print("=" * 50)
+
+    # --- First-run onboarding: ask name and preferred address directly ---
+    if not user_name:
+        user_name = input("Pyros: Hey! Before we start, what's your name?\nYou: ").strip()
+        memory.set_user_name(user_name)
+
+        # Check if this matches the known creator from identity.py
+        if user_name.strip().lower() == CREATOR["name"].strip().lower():
+            print(f"[memory] Recognized {user_name} as creator (matches identity.py).")
+        else:
+            print(f"[memory] Note: '{user_name}' does not match the creator name in identity.py.")
+
+    if not preferred_address:
+        preferred_address = input(
+            f"Pyros: Nice to meet you, {user_name}. What would you like me to call you "
+            f"going forward — your name, \"Boss\", \"Sir\", or anything else?\nYou: "
+        ).strip()
+        memory.set_preferred_address(preferred_address)
+
+    print(f"\nPyros: Got it, {preferred_address}. Type 'quit' or 'exit' anytime to stop.\n")
+
+    if history:
+        print(f"(Loaded {len(history)} previous exchanges)\n")
+
     while True:
         user_input = input("You: ")
-        if user_input.lower() == "quit":
+        if user_input.lower() in ("quit", "exit"):
             break
-        reply = ask_pyros(user_input, history)
+
+        # Check if the user wants to change their preferred address mid-conversation
+        new_preference = detect_address_preference(user_input)
+        if new_preference:
+            memory.set_preferred_address(new_preference)
+            preferred_address = new_preference
+
+        reply = ask_pyros(user_input, history, preferred_address)
         print(f"Pyros: {reply}\n")
+
+        memory.log_exchange(user_input, reply)
         history.append({"role": "user", "content": user_input})
         history.append({"role": "assistant", "content": reply})
+
+        # Only store to long-term memory when explicitly asked, to keep storage low
+        if "remember" in user_input.lower():
+            memory.remember_fact(user_input)

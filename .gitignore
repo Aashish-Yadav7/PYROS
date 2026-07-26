@@ -1,2 +1,14 @@
 .env
 venv
+
+# --- Personal memory/data: NEVER push these ---
+memory_store/
+
+# --- Python generated files ---
+__pycache__/
+*.pyc
+
+
+# --- OS junk ---
+.DS_Store
+Thumbs.db
