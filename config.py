@@ -9,8 +9,6 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-CREATOR_NAME = os.getenv("CREATOR_NAME", "my creator")
-
 # Each provider has a list of keys. Index 0 is tried first.
 API_KEYS = {
     "groq": [os.getenv("GROQ_API_KEY_1"), os.getenv("GROQ_API_KEY_2")],
@@ -18,6 +16,9 @@ API_KEYS = {
     "cerebras": [os.getenv("CEREBRAS_API_KEY_1"), os.getenv("CEREBRAS_API_KEY_2")],
     "openai": [os.getenv("OPENAI_API_KEY_1"), os.getenv("OPENAI_API_KEY_2")],
 }
+
+# Single key, no rotation needed for this one
+CURRENTS_API_KEY = os.getenv("CURRENTS_API_KEY")
 
 # Tracks which key index is currently active per provider
 _active_key_index = {provider: 0 for provider in API_KEYS}
