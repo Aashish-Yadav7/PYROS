@@ -5,9 +5,12 @@ location (detected automatically via IP, no manual input needed).
 """
 
 from datetime import datetime
+from datetime import datetime
 import requests
+from identity import MANUAL_LOCATION
 
 _location_cache = None  # avoid hitting the API on every single message
+_location_attempted = False  # only try once per run, even if it fails
 
 
 def get_current_datetime() -> str:
@@ -18,14 +21,25 @@ def get_current_datetime() -> str:
 
 def get_location() -> dict:
     """
-    Detects approximate location via IP address (city-level, not precise GPS).
-    Cached after first successful call so we don't hit the API every message.
-    Returns a dict like {"city": ..., "region": ..., "country": ...}
-    or a fallback dict if detection fails (e.g. no internet).
+    Returns location as: manual override (if set in identity.py) > cached
+    result > freshly IP-detected result > unknown fallback.
     """
-    global _location_cache
+    global _location_cache, _location_attempted
+
+    if MANUAL_LOCATION:
+        parts = [p.strip() for p in MANUAL_LOCATION.split(",")]
+        return {
+            "city": parts[0] if len(parts) > 0 else "unknown",
+            "region": parts[1] if len(parts) > 1 else "unknown",
+            "country": parts[2] if len(parts) > 2 else "unknown",
+        }
+
     if _location_cache:
         return _location_cache
+    if _location_attempted:
+        return {"city": "unknown", "region": "unknown", "country": "unknown"}
+
+    _location_attempted = True
 
     try:
         response = requests.get("https://ip-api.com/json/", timeout=3)
@@ -38,7 +52,7 @@ def get_location() -> dict:
             }
             return _location_cache
     except Exception as e:
-        print(f"[awareness] Location detection failed: {e}")
+        print(f"[awareness] Location auto-detection failed once (won't retry this session): {e}")
 
     return {"city": "unknown", "region": "unknown", "country": "unknown"}
 
