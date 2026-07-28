@@ -80,10 +80,12 @@ class PyrosWindow(QWidget):
             self._onboarding_stage = "address"
 
     def _show_user(self, text: str):
-        self.chat_display.append(f"<b>You:</b> {text}")
+        safe_text = text.replace("\n", "<br>")
+        self.chat_display.append(f"<b>You:</b> {safe_text}")
 
     def _show_pyros(self, text: str):
-        self.chat_display.append(f"<b>Pyros:</b> {text}<br>")
+        safe_text = text.replace("\n", "<br>")
+        self.chat_display.append(f"<b>Pyros:</b> {safe_text}<br>")
 
     def handle_send(self):
         user_text = self.input_box.text().strip()
