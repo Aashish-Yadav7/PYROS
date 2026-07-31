@@ -1,4 +1,4 @@
-]"""
+"""
 brain.py
 Pyros's core thinking module. Sends messages to an LLM provider and returns a reply.
 Handles automatic key rotation if a request fails (e.g. rate limit).
@@ -21,9 +21,9 @@ _CALL_ME_PATTERN = re.compile(r"call me (\w+)", flags=re.IGNORECASE)
 
 # Keywords that trigger a real news fetch, so we don't call the API every message
 _NEWS_KEYWORDS = (
-    "news", "current event", "headline", "happening", "latest update",
-    "what's going on", "recent update", "war", "conflict", "tension",
-    "election", "attack", "crisis",
+    "news", "current event", "current affairs", "affairs", "headline",
+    "happening", "latest update", "what's going on", "recent update",
+    "war", "conflict", "tension", "election", "attack", "crisis",
 )
 
 
@@ -44,6 +44,18 @@ def _wants_news(user_message: str) -> bool:
     return any(keyword in lowered for keyword in _NEWS_KEYWORDS)
 
 
+def _last_reply_was_news(chat_history: list) -> bool:
+    """
+    Check if the previous assistant reply was news-based. If so, treat the
+    current message as a likely follow-up about news too, even if it doesn't
+    contain an obvious keyword (e.g. "these are old" or "give me more").
+    """
+    if not chat_history:
+        return False
+    last = chat_history[-1]
+    return last.get("role") == "assistant" and "Current news" in last.get("content", "")
+
+
 def ask_pyros(user_message: str, chat_history: list, preferred_address: str | None) -> str:
     """
     user_message: latest thing the user typed
@@ -53,8 +65,9 @@ def ask_pyros(user_message: str, chat_history: list, preferred_address: str | No
     """
     system_content = get_system_prompt(preferred_address)
 
-    # Only fetch real news if the user is actually asking about it
-    if _wants_news(user_message):
+    # Fetch real news if the user is asking about it directly, OR if the
+    # previous reply was already news-based (likely a follow-up question)
+    if _wants_news(user_message) or _last_reply_was_news(chat_history):
         headlines = news.get_all_current_news()
         system_content += f"""
 
@@ -62,14 +75,19 @@ Here is real, current news data to use in your answer:
 {headlines}
 
 Rules for answering this news question:
-- Only report what's actually in the headlines above. Do NOT invent or guess
-  additional headlines, even if the user asks about a specific country/topic
-  that isn't well represented above — if it's not there, say you don't have
-  current coverage on that specific thing rather than making something up.
-- Format your answer as a clean numbered list, one headline per line, like:
+- Only report what's actually in the data above (titles AND details). Do NOT invent or
+  guess additional information, even if the user asks about a specific country/topic
+  that isn't well represented above — if it's not there, say you don't have current
+  coverage on that specific thing rather than making something up.
+- This news feed only has what's listed above — if the user says "these are old" or
+  asks for "different" or "more" news, explain that this is everything currently
+  available from the feed right now (it refreshes periodically), rather than
+  inventing new headlines that aren't in the list.
+- By default, format as a clean numbered list of headlines, one per line, like:
   1. Headline one
   2. Headline two
-  Do not merge them into a paragraph.
+  If the user asks for more detail/content on a specific one, use the "Details" text
+  provided for that article to give a real substantive answer, not just the headline.
 """
 
     messages = [{"role": "system", "content": system_content}]

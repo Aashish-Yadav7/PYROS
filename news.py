@@ -29,8 +29,8 @@ _cache = {"data": None, "timestamp": 0}
 
 # ---------- PRIMARY: Currents API ----------
 
-def _get_from_currents(limit: int = 10) -> list[str] | None:
-    """Try fetching headlines from Currents API. Returns None if it fails."""
+def _get_from_currents(limit: int = 10) -> list[dict] | None:
+    """Try fetching headlines + descriptions from Currents API. Returns None if it fails."""
     if not config.CURRENTS_API_KEY:
         return None
 
@@ -42,7 +42,14 @@ def _get_from_currents(limit: int = 10) -> list[str] | None:
         )
         data = response.json()
         if data.get("status") == "ok":
-            return [article["title"] for article in data["news"][:limit]]
+            return [
+                {
+                    "title": article.get("title", ""),
+                    "description": article.get("description", ""),
+                    "category": ", ".join(article.get("category", [])) or "general",
+                }
+                for article in data["news"][:limit]
+            ]
     except Exception as e:
         print(f"[news] Currents API failed: {e}")
 
@@ -51,26 +58,30 @@ def _get_from_currents(limit: int = 10) -> list[str] | None:
 
 # ---------- FALLBACK: RSS ----------
 
-def _get_from_rss(limit_per_source: int = 5) -> list[str]:
-    """Fetch headlines from RSS feeds. Always works, no key needed."""
-    all_headlines = []
+def _get_from_rss(limit_per_source: int = 5) -> list[dict]:
+    """Fetch headlines + summaries from RSS feeds. Always works, no key needed."""
+    all_articles = []
     for source, url in FEEDS.items():
         try:
             feed = feedparser.parse(url)
             for entry in feed.entries[:limit_per_source]:
-                all_headlines.append(f"{entry.title} ({source})")
+                all_articles.append({
+                    "title": entry.title,
+                    "description": getattr(entry, "summary", ""),
+                    "category": source,
+                })
         except Exception as e:
             print(f"[news] RSS fetch failed for {source}: {e}")
-    return all_headlines
+    return all_articles
 
 
 # ---------- PUBLIC INTERFACE (with caching) ----------
 
 def get_all_current_news(limit: int = 10) -> str:
     """
-    Fetch current headlines, using a cached result if it's still fresh
-    (within CACHE_MINUTES). Only calls the actual APIs when the cache
-    has expired, to avoid burning through daily request limits.
+    Fetch current news (headline + description), using a cached result if
+    it's still fresh (within CACHE_MINUTES). Only calls the actual APIs when
+    the cache has expired, to avoid burning through daily request limits.
     """
     now = time.time()
     cache_age_minutes = (now - _cache["timestamp"]) / 60
@@ -78,18 +89,25 @@ def get_all_current_news(limit: int = 10) -> str:
     if _cache["data"] and cache_age_minutes < CACHE_MINUTES:
         return _cache["data"]  # reuse cached result, no API call made
 
-    headlines = _get_from_currents(limit)
+    articles = _get_from_currents(limit)
     source_used = "Currents API"
 
-    if not headlines:
-        headlines = _get_from_rss(limit_per_source=5)
+    if not articles:
+        articles = _get_from_rss(limit_per_source=5)
         source_used = "RSS (fallback)"
 
-    if not headlines:
+    if not articles:
         return _cache["data"] or "(Couldn't fetch news from any source right now.)"
 
-    headline_lines = "\n".join(f"- {h}" for h in headlines)
-    result = f"Current headlines (source: {source_used}):\n{headline_lines}"
+    blocks = []
+    for i, article in enumerate(articles, 1):
+        desc = article["description"].strip()
+        block = f"{i}. {article['title']} [{article['category']}]"
+        if desc:
+            block += f"\n   Details: {desc}"
+        blocks.append(block)
+
+    result = f"Current news (source: {source_used}):\n" + "\n".join(blocks)
 
     _cache["data"] = result
     _cache["timestamp"] = now
