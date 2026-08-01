@@ -17,9 +17,11 @@ import webbrowser
 # systems where Chromium's GPU blocklist or drivers block hardware rendering.
 # --use-gl=angle --use-angle=d3d11warp forces a pure-software renderer that
 # works on any Windows machine regardless of GPU/driver support.
+os.environ.setdefault("QTWEBENGINE_DISABLE_SANDBOX", "1")
 os.environ.setdefault(
     "QTWEBENGINE_CHROMIUM_FLAGS",
-    "--enable-webgl --ignore-gpu-blocklist --use-gl=angle --use-angle=swiftshader"
+    "--ignore-gpu-blocklist --disable-gpu-sandbox --disable-gpu-driver-bug-workarounds "
+    "--use-gl=angle --use-angle=d3d11"
 )
 
 from PyQt6.QtWidgets import (
@@ -28,12 +30,19 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtCore import QThread, pyqtSignal, QUrl, QTimer, Qt
 from PyQt6.QtWebEngineWidgets import QWebEngineView
-from PyQt6.QtWebEngineCore import QWebEngineSettings
+from PyQt6.QtWebEngineCore import QWebEngineSettings, QWebEnginePage
 
 import memory
 import brain
 import news
 from identity import CREATOR
+
+
+class LoggingWebPage(QWebEnginePage):
+    """Forwards the globe's browser console messages to our own terminal,
+    so we can actually see JS/WebGL errors instead of a silent black screen."""
+    def javaScriptConsoleMessage(self, level, message, line, source):
+        print(f"[globe console] {message} (line {line})")
 
 GLOBE_HTML_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "globe.html")
 NEWS_REFRESH_MS = 20 * 60 * 1000  # match news.py's cache window (20 minutes)
@@ -175,6 +184,7 @@ class PyrosWindow(QWidget):
         right_panel = QVBoxLayout()
 
         self.globe_view = QWebEngineView()
+        self.globe_view.setPage(LoggingWebPage(self.globe_view))
         self.globe_view.settings().setAttribute(QWebEngineSettings.WebAttribute.WebGLEnabled, True)
         self.globe_view.settings().setAttribute(QWebEngineSettings.WebAttribute.Accelerated2dCanvasEnabled, True)
         self.globe_view.setUrl(QUrl.fromLocalFile(GLOBE_HTML_PATH))
