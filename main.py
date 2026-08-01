@@ -1,45 +1,76 @@
 """
 main.py
-Pyros's GUI entry point. Run this instead of brain.py from now on.
+Pyros's GUI entry point.
 
-Two-panel layout: chat on the left, live globe/news web view fixed on the
-right (your Bolt project, embedded directly). Dark themed.
-
-The LLM call runs in a background thread so the window never freezes
-while she's thinking.
+Layout: chat on the left. On the right, our OWN local globe (Three.js,
+no Bolt dependency, no logos, transparent background blending into the
+space theme) on top, with a bordered/structured news panel below it,
+populated from news.py with real fetched, clickable headlines.
 """
 
+import os
+import re
 import sys
+import webbrowser
+
+# Must be set before QApplication is created - fixes black WebGL screen on
+# systems where Chromium's GPU blocklist or drivers block hardware rendering.
+# --use-gl=angle --use-angle=d3d11warp forces a pure-software renderer that
+# works on any Windows machine regardless of GPU/driver support.
+os.environ.setdefault(
+    "QTWEBENGINE_CHROMIUM_FLAGS",
+    "--enable-webgl --ignore-gpu-blocklist --use-gl=angle --use-angle=swiftshader"
+)
+
 from PyQt6.QtWidgets import (
     QApplication, QWidget, QVBoxLayout, QHBoxLayout,
-    QTextEdit, QLineEdit, QPushButton,
+    QTextEdit, QLineEdit, QPushButton, QListWidget, QListWidgetItem,
 )
-from PyQt6.QtCore import QThread, pyqtSignal, QUrl
+from PyQt6.QtCore import QThread, pyqtSignal, QUrl, QTimer, Qt
 from PyQt6.QtWebEngineWidgets import QWebEngineView
+from PyQt6.QtWebEngineCore import QWebEngineSettings
 
 import memory
 import brain
+import news
 from identity import CREATOR
 
-# Change this if your Bolt project URL ever changes
-GLOBE_URL = "https://rotating-earth-visua-bcxi.bolt.host"
+GLOBE_HTML_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "globe.html")
+NEWS_REFRESH_MS = 20 * 60 * 1000  # match news.py's cache window (20 minutes)
 
-DARK_STYLESHEET = """
+_PLANET_NAMES = ("mercury", "venus", "earth", "mars", "jupiter", "saturn", "uranus", "neptune", "sun")
+_ZOOM_OUT_PHRASES = ("zoom out", "solar system", "show all planets", "whole system")
+
+
+def _detect_zoom_command(user_message: str) -> str | None:
+    """
+    Check if the user's message is a zoom command.
+    Returns 'zoom_out', a planet name, or None.
+    """
+    lowered = user_message.lower()
+    if any(phrase in lowered for phrase in _ZOOM_OUT_PHRASES):
+        return "zoom_out"
+    for planet in _PLANET_NAMES:
+        if planet in lowered and ("zoom" in lowered or "show" in lowered or "go to" in lowered or "focus" in lowered):
+            return planet
+    return None
+
+SPACE_STYLESHEET = """
 QWidget {
-    background-color: #1e1f26;
+    background-color: #05060a;
     color: #e8e8ec;
     font-family: Segoe UI, sans-serif;
     font-size: 14px;
 }
-QTextEdit {
-    background-color: #26272f;
-    border: 1px solid #33343d;
+QTextEdit, QListWidget {
+    background-color: #0d0f16;
+    border: 1px solid #262a38;
     border-radius: 8px;
-    padding: 10px;
+    padding: 8px;
 }
 QLineEdit {
-    background-color: #26272f;
-    border: 1px solid #3a3b45;
+    background-color: #0d0f16;
+    border: 1px solid #2a2e3d;
     border-radius: 8px;
     padding: 8px;
 }
@@ -58,7 +89,27 @@ QPushButton:hover {
     background-color: #7d75ff;
 }
 QPushButton:disabled {
-    background-color: #44445a;
+    background-color: #2a2b38;
+}
+QListWidget::item {
+    padding: 8px 4px;
+    border-bottom: 1px solid #1c1f2b;
+}
+QScrollBar:vertical {
+    background: #0d0f16;
+    width: 10px;
+    border-radius: 5px;
+}
+QScrollBar::handle:vertical {
+    background: #3a3d4d;
+    border-radius: 5px;
+    min-height: 20px;
+}
+QScrollBar::handle:vertical:hover {
+    background: #4c4f63;
+}
+QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
+    height: 0px;
 }
 """
 
@@ -78,18 +129,27 @@ class ThinkingThread(QThread):
         self.reply_ready.emit(reply)
 
 
+class NewsFetchThread(QThread):
+    """Fetches news in the background so the UI doesn't freeze."""
+    news_ready = pyqtSignal(list)
+
+    def run(self):
+        result = news.get_headlines_for_display(target_count=200)
+        self.news_ready.emit(result)
+
+
 class PyrosWindow(QWidget):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("PYROS")
-        self.resize(1100, 700)
-        self.setStyleSheet(DARK_STYLESHEET)
+        self.resize(1150, 720)
+        self.setStyleSheet(SPACE_STYLESHEET)
 
         self.history = memory.load_history()
         self.user_name = memory.get_user_name()
         self.preferred_address = memory.get_preferred_address()
 
-        # --- Overall layout: chat on the left, globe fixed on the right ---
+        # --- Overall layout: chat on the left, globe+news fixed on the right ---
         main_layout = QHBoxLayout()
 
         # Left: chat panel
@@ -111,20 +171,30 @@ class PyrosWindow(QWidget):
 
         chat_panel.addLayout(input_row)
 
-        # Right: live globe + news, fixed width
-        globe_panel = QVBoxLayout()
-
-        reload_button = QPushButton("Reload Globe")
-        reload_button.clicked.connect(self._reload_globe)
-        globe_panel.addWidget(reload_button)
+        # Right: globe on top (no border, blends into space bg), news below (bordered)
+        right_panel = QVBoxLayout()
 
         self.globe_view = QWebEngineView()
-        self.globe_view.setUrl(QUrl(GLOBE_URL))
+        self.globe_view.settings().setAttribute(QWebEngineSettings.WebAttribute.WebGLEnabled, True)
+        self.globe_view.settings().setAttribute(QWebEngineSettings.WebAttribute.Accelerated2dCanvasEnabled, True)
+        self.globe_view.setUrl(QUrl.fromLocalFile(GLOBE_HTML_PATH))
         self.globe_view.setFixedWidth(420)
-        globe_panel.addWidget(self.globe_view)
+        self.globe_view.setFixedHeight(360)
+        self.globe_view.setStyleSheet("border: none; background: #05060a;")
+        right_panel.addWidget(self.globe_view)
+
+        self.news_list = QListWidget()
+        self.news_list.setFixedWidth(420)
+        self.news_list.setWordWrap(True)
+        self.news_list.itemClicked.connect(self._open_article)
+        right_panel.addWidget(self.news_list)
+
+        refresh_button = QPushButton("Refresh News")
+        refresh_button.clicked.connect(self.refresh_news)
+        right_panel.addWidget(refresh_button)
 
         main_layout.addLayout(chat_panel, stretch=2)
-        main_layout.addLayout(globe_panel, stretch=1)
+        main_layout.addLayout(right_panel, stretch=1)
 
         self.setLayout(main_layout)
 
@@ -134,8 +204,33 @@ class PyrosWindow(QWidget):
         else:
             self._show_pyros(f"Got it, {self.preferred_address}. What's on your mind?")
 
-    def _reload_globe(self):
-        self.globe_view.setUrl(QUrl(GLOBE_URL))
+        # --- Load news on startup, then auto-refresh periodically ---
+        self.refresh_news()
+        self.news_timer = QTimer()
+        self.news_timer.timeout.connect(self.refresh_news)
+        self.news_timer.start(NEWS_REFRESH_MS)
+
+    def refresh_news(self):
+        self.news_thread = NewsFetchThread()
+        self.news_thread.news_ready.connect(self._populate_news)
+        self.news_thread.start()
+
+    def _populate_news(self, articles: list):
+        self.news_list.clear()
+        for article in articles:
+            title = article.get("title", "").strip()
+            url = article.get("url", "").strip()
+            category = article.get("category", "")
+            if not title:
+                continue
+            item = QListWidgetItem(f"{title}\n{category}")
+            item.setData(Qt.ItemDataRole.UserRole, url)
+            self.news_list.addItem(item)
+
+    def _open_article(self, item: QListWidgetItem):
+        url = item.data(Qt.ItemDataRole.UserRole)
+        if url:
+            webbrowser.open(url)
 
     def _run_onboarding(self):
         """Very simple onboarding using the chat display itself."""
@@ -180,6 +275,17 @@ class PyrosWindow(QWidget):
         if new_preference:
             memory.set_preferred_address(new_preference)
             self.preferred_address = new_preference
+
+        # Check if this is a globe zoom command
+        zoom_target = _detect_zoom_command(user_text)
+        if zoom_target:
+            if zoom_target == "zoom_out":
+                self.globe_view.page().runJavaScript("window.zoomOutSolarSystem();")
+                self._show_pyros("Zooming out to show the whole solar system.")
+            else:
+                self.globe_view.page().runJavaScript(f"window.zoomToPlanet('{zoom_target}');")
+                self._show_pyros(f"Zooming in on {zoom_target.title()}.")
+            return
 
         # Disable input while she's thinking
         self.input_box.setEnabled(False)

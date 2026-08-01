@@ -17,20 +17,25 @@ import requests
 import feedparser
 import config
 
-# Free, no-key RSS feeds — used as a reliable fallback.
+# Free, no-key RSS feeds — used as a reliable fallback AND to help reach
+# a larger total headline count for the GUI news panel.
 FEEDS = {
     "BBC World": "http://feeds.bbci.co.uk/news/world/rss.xml",
+    "BBC Business": "http://feeds.bbci.co.uk/news/business/rss.xml",
+    "BBC Technology": "http://feeds.bbci.co.uk/news/technology/rss.xml",
     "Reuters World": "https://www.reutersagency.com/feed/?best-topics=world&post_type=best",
+    "NYT World": "https://rss.nytimes.com/services/xml/rss/nyt/World.xml",
 }
 
 CACHE_MINUTES = 20  # how long a fetched result stays valid before refreshing
 _cache = {"data": None, "timestamp": 0}
+_gui_cache = {"data": None, "timestamp": 0}
 
 
 # ---------- PRIMARY: Currents API ----------
 
 def _get_from_currents(limit: int = 10) -> list[dict] | None:
-    """Try fetching headlines + descriptions from Currents API. Returns None if it fails."""
+    """Try fetching headlines + descriptions + URLs from Currents API. Returns None if it fails."""
     if not config.CURRENTS_API_KEY:
         return None
 
@@ -47,6 +52,7 @@ def _get_from_currents(limit: int = 10) -> list[dict] | None:
                     "title": article.get("title", ""),
                     "description": article.get("description", ""),
                     "category": ", ".join(article.get("category", [])) or "general",
+                    "url": article.get("url", ""),
                 }
                 for article in data["news"][:limit]
             ]
@@ -59,7 +65,7 @@ def _get_from_currents(limit: int = 10) -> list[dict] | None:
 # ---------- FALLBACK: RSS ----------
 
 def _get_from_rss(limit_per_source: int = 5) -> list[dict]:
-    """Fetch headlines + summaries from RSS feeds. Always works, no key needed."""
+    """Fetch headlines + summaries + URLs from RSS feeds. Always works, no key needed."""
     all_articles = []
     for source, url in FEEDS.items():
         try:
@@ -69,25 +75,25 @@ def _get_from_rss(limit_per_source: int = 5) -> list[dict]:
                     "title": entry.title,
                     "description": getattr(entry, "summary", ""),
                     "category": source,
+                    "url": getattr(entry, "link", ""),
                 })
         except Exception as e:
             print(f"[news] RSS fetch failed for {source}: {e}")
     return all_articles
 
 
-# ---------- PUBLIC INTERFACE (with caching) ----------
+# ---------- PUBLIC INTERFACE for the LLM (with caching) ----------
 
 def get_all_current_news(limit: int = 10) -> str:
     """
-    Fetch current news (headline + description), using a cached result if
-    it's still fresh (within CACHE_MINUTES). Only calls the actual APIs when
-    the cache has expired, to avoid burning through daily request limits.
+    Fetch current news (headline + description) as readable text for the LLM.
+    Cached for CACHE_MINUTES to avoid burning through daily API limits.
     """
     now = time.time()
     cache_age_minutes = (now - _cache["timestamp"]) / 60
 
     if _cache["data"] and cache_age_minutes < CACHE_MINUTES:
-        return _cache["data"]  # reuse cached result, no API call made
+        return _cache["data"]
 
     articles = _get_from_currents(limit)
     source_used = "Currents API"
@@ -114,8 +120,41 @@ def get_all_current_news(limit: int = 10) -> str:
     return result
 
 
-# --- Quick manual test ---
-if __name__ == "__main__":
-    print(get_all_current_news())
-    print("\n--- calling again immediately (should be instant, from cache) ---")
-    print(get_all_current_news())
+# ---------- PUBLIC INTERFACE for the GUI news panel ----------
+
+def get_headlines_for_display(target_count: int = 200) -> list[dict]:
+    """
+    Returns a list of real article dicts (title, url, category) for the GUI
+    news panel, each with a real clickable link. Combines Currents API +
+    multiple RSS feeds to get as close to target_count as real data allows
+    (RSS feeds only contain what's currently published — an exact 200 isn't
+    guaranteed, this returns everything genuinely available, deduplicated).
+    Cached for CACHE_MINUTES.
+    """
+    now = time.time()
+    cache_age_minutes = (now - _gui_cache["timestamp"]) / 60
+
+    if _gui_cache["data"] and cache_age_minutes < CACHE_MINUTES:
+        return _gui_cache["data"]
+
+    combined = []
+    seen_titles = set()
+
+    currents_articles = _get_from_currents(limit=target_count) or []
+    for article in currents_articles:
+        if article["title"] not in seen_titles:
+            combined.append(article)
+            seen_titles.add(article["title"])
+
+    if len(combined) < target_count:
+        rss_articles = _get_from_rss(limit_per_source=50)
+        for article in rss_articles:
+            if article["title"] not in seen_titles:
+                combined.append(article)
+                seen_titles.add(article["title"])
+            if len(combined) >= target_count:
+                break
+
+    _gui_cache["data"] = combined
+    _gui_cache["timestamp"] = now
+    return combined
