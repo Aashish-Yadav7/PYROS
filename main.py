@@ -47,20 +47,28 @@ class LoggingWebPage(QWebEnginePage):
 GLOBE_HTML_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "globe.html")
 NEWS_REFRESH_MS = 20 * 60 * 1000  # match news.py's cache window (20 minutes)
 
-_PLANET_NAMES = ("mercury", "venus", "earth", "mars", "jupiter", "saturn", "uranus", "neptune", "sun")
-_ZOOM_OUT_PHRASES = ("zoom out", "solar system", "show all planets", "whole system")
+_PLANET_NAMES = (
+    "mercury", "venus", "earth", "mars", "jupiter", "saturn", "uranus", "neptune", "sun",
+    "moon", "phobos", "deimos", "io", "europa", "ganymede", "callisto",
+    "titan", "titania", "triton",
+)
+_ZOOM_OUT_PHRASES = ("zoom out", "solar system", "show all planets", "whole system", "zoom all the way out")
+_ACTION_VERBS = (
+    "zoom", "show", "go to", "focus", "take me to", "navigate to", "fly to",
+    "warp to", "look at", "move to", "head to", "bring me to",
+)
 
 
 def _detect_zoom_command(user_message: str) -> str | None:
     """
     Check if the user's message is a zoom command.
-    Returns 'zoom_out', a planet name, or None.
+    Returns 'zoom_out', a planet/moon name, or None.
     """
     lowered = user_message.lower()
     if any(phrase in lowered for phrase in _ZOOM_OUT_PHRASES):
         return "zoom_out"
     for planet in _PLANET_NAMES:
-        if planet in lowered and ("zoom" in lowered or "show" in lowered or "go to" in lowered or "focus" in lowered):
+        if planet in lowered and any(verb in lowered for verb in _ACTION_VERBS):
             return planet
     return None
 
