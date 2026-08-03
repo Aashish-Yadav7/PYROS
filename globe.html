@@ -1091,39 +1091,66 @@ renderer.setClearColor(0x000000, 1);
 container.appendChild(renderer.domElement);
 console.log('Renderer created OK');
 
-// --- Real Milky Way skybox (rich space background, not just dots) ---
+// --- Real Milky Way skybox (ONLY star layer now - no duplicate point dots) ---
 const skyTexture = loader.load(TEX.milkyway, () => console.log('Skybox loaded OK'));
 const skyGeo = new THREE.SphereGeometry(1400, 60, 40);
 const skyMat = new THREE.MeshBasicMaterial({ map: skyTexture, side: THREE.BackSide });
 scene.add(new THREE.Mesh(skyGeo, skyMat));
 
-// --- Foreground sparkle stars (parallax layer in front of skybox) ---
-function buildStarfield() {
-    const starCount = 2000;
-    const positions = new Float32Array(starCount * 3);
-    for (let i = 0; i < starCount; i++) {
-        positions[i*3] = (Math.random() - 0.5) * 1000;
-        positions[i*3+1] = (Math.random() - 0.5) * 1000;
-        positions[i*3+2] = (Math.random() - 0.5) * 1000;
-    }
-    const geometry = new THREE.BufferGeometry();
-    geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-    const material = new THREE.PointsMaterial({ color: 0xffffff, size: 0.6, transparent: true, opacity: 0.7 });
-    return new THREE.Points(geometry, material);
-}
-scene.add(buildStarfield());
-
 scene.add(new THREE.PointLight(0xffffff, 2.5, 0, 0));
 scene.add(new THREE.AmbientLight(0xffffff, 0.45));
 
-// --- Real Sun texture ---
-const sunTexture = loader.load(TEX.sun, () => console.log('Sun texture loaded OK'));
-const sun = new THREE.Mesh(new THREE.SphereGeometry(6, 32, 32), new THREE.MeshBasicMaterial({ map: sunTexture }));
-scene.add(sun);
-const sunGlow = new THREE.Mesh(new THREE.SphereGeometry(8, 32, 32), new THREE.MeshBasicMaterial({ color: 0xffaa33, transparent: true, opacity: 0.22 }));
-scene.add(sunGlow);
+function makeMatcapMaterial(texKey) {
+    const t = loader.load(TEX[texKey],
+        () => console.log(texKey + ' matcap loaded OK'),
+        undefined,
+        (e) => console.log(texKey + ' matcap FAILED:', e));
+    return new THREE.MeshMatcapMaterial({ matcap: t });
+}
 
-// --- Named-object registry for zoom targeting (planets AND moons) ---
+// --- Real Sun (no extra flat glow shell) + animated solar flare arcs ---
+const sun = new THREE.Mesh(new THREE.SphereGeometry(6, 32, 32), makeMatcapMaterial('sun'));
+scene.add(sun);
+
+// Soft radial corona using a canvas-generated glow sprite (much more
+// realistic than a hard-edged transparent sphere)
+function buildCoronaSprite() {
+    const canvas = document.createElement('canvas');
+    canvas.width = 256; canvas.height = 256;
+    const ctx = canvas.getContext('2d');
+    const gradient = ctx.createRadialGradient(128, 128, 0, 128, 128, 128);
+    gradient.addColorStop(0, 'rgba(255,220,120,0.9)');
+    gradient.addColorStop(0.4, 'rgba(255,170,60,0.4)');
+    gradient.addColorStop(1, 'rgba(255,140,40,0)');
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, 256, 256);
+    const tex = new THREE.CanvasTexture(canvas);
+    const mat = new THREE.SpriteMaterial({ map: tex, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false });
+    const sprite = new THREE.Sprite(mat);
+    sprite.scale.set(22, 22, 1);
+    return sprite;
+}
+scene.add(buildCoronaSprite());
+
+// Animated solar flare arcs erupting from the surface
+const flares = [];
+function buildFlare(offsetAngle) {
+    const curve = new THREE.CubicBezierCurve3(
+        new THREE.Vector3(Math.cos(offsetAngle) * 6, Math.sin(offsetAngle) * 6, 0),
+        new THREE.Vector3(Math.cos(offsetAngle) * 9, Math.sin(offsetAngle) * 9, 2),
+        new THREE.Vector3(Math.cos(offsetAngle + 0.3) * 10, Math.sin(offsetAngle + 0.3) * 10, -1),
+        new THREE.Vector3(Math.cos(offsetAngle + 0.5) * 7.5, Math.sin(offsetAngle + 0.5) * 7.5, 0)
+    );
+    const geo = new THREE.TubeGeometry(curve, 20, 0.15, 6, false);
+    const mat = new THREE.MeshBasicMaterial({ color: 0xff6a2a, transparent: true, opacity: 0.75 });
+    const mesh = new THREE.Mesh(geo, mat);
+    flares.push({ mesh, baseOpacity: 0.75, phase: Math.random() * Math.PI * 2 });
+    return mesh;
+}
+for (let i = 0; i < 5; i++) {
+    sun.add(buildFlare((i / 5) * Math.PI * 2));
+}
+
 const planets = {
     sun: { position: new THREE.Vector3(0, 0, 0), getWorldPosition: function(v) { v.copy(this.position); return v; } }
 };
@@ -1132,8 +1159,7 @@ const allMoons = [];
 function addMoon(parentGroup, distance, size, color, speed, name, texKey) {
     let material;
     if (texKey && TEX[texKey]) {
-        const t = loader.load(TEX[texKey]);
-        material = new THREE.MeshPhongMaterial({ map: t });
+        material = makeMatcapMaterial(texKey);
     } else {
         material = new THREE.MeshPhongMaterial({ color: color });
     }
@@ -1145,7 +1171,30 @@ function addMoon(parentGroup, distance, size, color, speed, name, texKey) {
     return entry;
 }
 
-// --- Earth (real texture) + real Moon texture ---
+// --- Real relative orbital + rotation speeds ---
+// Orbit: real periods in Earth days. Rotation: real periods in Earth hours
+// (negative = retrograde, like Venus and Uranus in reality).
+// EARTH_ORBIT_FRAMES/EARTH_ROTATION_FRAMES set how long Earth takes to
+// complete one revolution/rotation on screen - everything else is scaled
+// relative to Earth using the REAL ratio, so Mercury genuinely orbits
+// faster than Neptune, Jupiter genuinely spins faster than Earth, etc.
+const EARTH_ORBIT_DAYS = 365.25;
+const EARTH_ROTATION_HOURS = 24;
+const EARTH_ORBIT_FRAMES = 1200;   // ~20s per Earth orbit on screen
+const EARTH_ROTATION_FRAMES = 480; // ~8s per Earth day-spin on screen
+
+const earthOrbitSpeed = (2 * Math.PI) / EARTH_ORBIT_FRAMES;
+const earthRotationSpeed = (2 * Math.PI) / EARTH_ROTATION_FRAMES;
+
+function orbitSpeedFor(periodDays) {
+    return earthOrbitSpeed * (EARTH_ORBIT_DAYS / periodDays);
+}
+function rotationSpeedFor(periodHours) {
+    // periodHours can be negative for retrograde rotation (Venus, Uranus)
+    const sign = Math.sign(periodHours);
+    return sign * earthRotationSpeed * (EARTH_ROTATION_HOURS / Math.abs(periodHours));
+}
+
 const earthGroup = new THREE.Group();
 const EARTH_ORBIT_RADIUS = 120;
 const earthTexture = loader.load(TEX.earth, () => console.log('Earth texture loaded OK'));
@@ -1156,41 +1205,39 @@ scene.add(earthGroup);
 planets.earth = earthGroup;
 addMoon(earthGroup, 3.2, 0.55, 0xaaaaaa, 0.03, 'moon', 'moon');
 
-// --- Other planets, all with real textures now ---
+// Real orbital period (days) and rotation period (hours, sign = direction)
 const planetDefs = [
-    { name: 'mercury', radius: 0.6, orbit: 40,  color: 0x9c9c9c, speed: 0.020, tex: 'mercury', moons: [] },
-    { name: 'venus',   radius: 1.4, orbit: 75,  color: 0xe0c080, speed: 0.015, tex: 'venus', moons: [] },
-    { name: 'mars',    radius: 1.1, orbit: 160, color: 0xc1440e, speed: 0.010, tex: 'mars',
+    { name: 'mercury', radius: 0.6, orbit: 40,  color: 0x9c9c9c, orbitDays: 88,     rotHours: 1407.6,  tex: 'mercury', moons: [] },
+    { name: 'venus',   radius: 1.4, orbit: 75,  color: 0xe0c080, orbitDays: 225,    rotHours: -5832.5, tex: 'venus', moons: [] },
+    { name: 'mars',    radius: 1.1, orbit: 160, color: 0xc1440e, orbitDays: 687,    rotHours: 24.6,    tex: 'mars',
        moons: [{ name: 'phobos', dist: 2.0, size: 0.15, color: 0x999999, speed: 0.05 },
                { name: 'deimos', dist: 2.6, size: 0.12, color: 0x888888, speed: 0.035 }] },
-    { name: 'jupiter', radius: 5.5, orbit: 260, color: 0xd8ba8f, speed: 0.005, tex: 'jupiter',
+    { name: 'jupiter', radius: 5.5, orbit: 260, color: 0xd8ba8f, orbitDays: 4331,   rotHours: 9.9,     tex: 'jupiter',
        moons: [
          { name: 'io',       dist: 7.5,  size: 0.35, color: 0xd8c9a3, speed: 0.025 },
          { name: 'europa',   dist: 9.0,  size: 0.32, color: 0xcfcfcf, speed: 0.020 },
          { name: 'ganymede', dist: 10.8, size: 0.48, color: 0xb0a898, speed: 0.015 },
          { name: 'callisto', dist: 12.6, size: 0.42, color: 0x8f8f8f, speed: 0.010 },
        ] },
-    { name: 'saturn',  radius: 4.6, orbit: 340, color: 0xead6a8, speed: 0.003, tex: 'saturn',
+    { name: 'saturn',  radius: 4.6, orbit: 340, color: 0xead6a8, orbitDays: 10747,  rotHours: 10.7,    tex: 'saturn',
        moons: [{ name: 'titan', dist: 9.5, size: 0.42, color: 0xd9b774, speed: 0.012 }] },
-    { name: 'uranus',  radius: 3.0, orbit: 420, color: 0x9fe3e3, speed: 0.002, tex: 'uranus',
+    { name: 'uranus',  radius: 3.0, orbit: 420, color: 0x9fe3e3, orbitDays: 30589,  rotHours: -17.2,   tex: 'uranus',
        moons: [{ name: 'titania', dist: 5.5, size: 0.25, color: 0xc9c9c9, speed: 0.018 }] },
-    { name: 'neptune', radius: 2.9, orbit: 490, color: 0x4169e1, speed: 0.0015, tex: 'neptune',
+    { name: 'neptune', radius: 2.9, orbit: 490, color: 0x4169e1, orbitDays: 59800,  rotHours: 16.1,    tex: 'neptune',
        moons: [{ name: 'triton', dist: 5.2, size: 0.27, color: 0xaeb8c2, speed: 0.016 }] },
 ];
 
 const orbitAngles = { earth: 0 };
 
 planetDefs.forEach(def => {
+    def.orbitSpeed = orbitSpeedFor(def.orbitDays);
+    def.rotationSpeed = rotationSpeedFor(def.rotHours);
+
     const group = new THREE.Group();
-    let material;
-    if (def.tex && TEX[def.tex]) {
-        const t = loader.load(TEX[def.tex], () => console.log(def.name + ' texture loaded OK'), undefined, (e) => console.log(def.name + ' texture failed:', e));
-        material = new THREE.MeshPhongMaterial({ map: t, shininess: 5 });
-    } else {
-        material = new THREE.MeshPhongMaterial({ color: def.color });
-    }
+    const material = def.tex ? makeMatcapMaterial(def.tex) : new THREE.MeshPhongMaterial({ color: def.color });
     const mesh = new THREE.Mesh(new THREE.SphereGeometry(def.radius, 32, 32), material);
     group.add(mesh);
+    def.mesh = mesh;
 
     if (def.name === 'saturn') {
         const ring = new THREE.Mesh(
@@ -1217,7 +1264,7 @@ planetDefs.forEach(def => {
     scene.add(ringMesh);
 });
 
-// --- Realistic asteroid belt: some real textured rocks + dense point field ---
+// --- Denser, real-textured asteroid belt (mostly solid rocks now, minimal dust) ---
 const asteroidTexture = loader.load(TEX.asteroid, () => console.log('Asteroid texture loaded OK'));
 
 function buildTexturedAsteroids(count) {
@@ -1225,16 +1272,15 @@ function buildTexturedAsteroids(count) {
     for (let i = 0; i < count; i++) {
         const angle = Math.random() * Math.PI * 2;
         const radius = 195 + Math.random() * 40;
-        const size = 0.5 + Math.random() * 1.2;
+        const size = 0.35 + Math.random() * 1.1;
         const geo = new THREE.IcosahedronGeometry(size, 0);
-        // Displace vertices randomly for an irregular rock shape
         const posAttr = geo.attributes.position;
         for (let v = 0; v < posAttr.count; v++) {
             const jitter = 0.8 + Math.random() * 0.4;
             posAttr.setXYZ(v, posAttr.getX(v) * jitter, posAttr.getY(v) * jitter, posAttr.getZ(v) * jitter);
         }
         geo.computeVertexNormals();
-        const mat = new THREE.MeshPhongMaterial({ map: asteroidTexture });
+        const mat = new THREE.MeshMatcapMaterial({ matcap: asteroidTexture });
         const rock = new THREE.Mesh(geo, mat);
         rock.position.set(Math.cos(angle) * radius, (Math.random() - 0.5) * 4, Math.sin(angle) * radius);
         rock.rotation.set(Math.random() * Math.PI, Math.random() * Math.PI, Math.random() * Math.PI);
@@ -1242,13 +1288,14 @@ function buildTexturedAsteroids(count) {
     }
     return group;
 }
-scene.add(buildTexturedAsteroids(40)); // larger, visible textured rocks
+scene.add(buildTexturedAsteroids(160)); // many more real rocks, this is now the primary belt visual
 
+// Minimal fine dust for density between the visible rocks (much fewer than before)
 function buildAsteroidDust() {
-    const count = 700;
+    const count = 200;
     const positions = new Float32Array(count * 3);
     const colors = new Float32Array(count * 3);
-    const rockTints = [[0.55,0.5,0.45],[0.4,0.35,0.3],[0.6,0.55,0.5],[0.35,0.32,0.3]];
+    const rockTints = [[0.55,0.5,0.45],[0.4,0.35,0.3],[0.6,0.55,0.5]];
     for (let i = 0; i < count; i++) {
         const angle = Math.random() * Math.PI * 2;
         const radius = 195 + Math.random() * 40;
@@ -1262,7 +1309,7 @@ function buildAsteroidDust() {
     const geometry = new THREE.BufferGeometry();
     geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
     geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
-    const material = new THREE.PointsMaterial({ size: 0.7, vertexColors: true });
+    const material = new THREE.PointsMaterial({ size: 0.5, vertexColors: true });
     return new THREE.Points(geometry, material);
 }
 scene.add(buildAsteroidDust());
@@ -1284,6 +1331,7 @@ controls.screenSpacePanning = true;
 camera.position.set(EARTH_ORBIT_RADIUS, 1, 6);
 controls.target.set(EARTH_ORBIT_RADIUS, 0, 0);
 
+// currentFocus = null means fully free-floating camera (no auto-follow)
 let currentFocus = 'earth';
 let lastFocusPos = new THREE.Vector3(EARTH_ORBIT_RADIUS, 0, 0);
 let animatingCamera = false;
@@ -1334,25 +1382,40 @@ window.zoomOutSolarSystem = function() {
     return true;
 };
 
+// Fully release the camera - no auto-follow, float anywhere freely
+window.releaseFocus = function() {
+    currentFocus = null;
+    return true;
+};
+
 window.addEventListener('resize', () => {
     camera.aspect = container.clientWidth / container.clientHeight;
     camera.updateProjectionMatrix();
     renderer.setSize(container.clientWidth, container.clientHeight);
 });
 
+let frameCount = 0;
+
 function animate() {
     requestAnimationFrame(animate);
+    frameCount++;
 
     planetDefs.forEach(def => {
-        orbitAngles[def.name] += def.speed;
+        orbitAngles[def.name] += def.orbitSpeed;
         const group = planets[def.name];
         group.position.set(Math.cos(orbitAngles[def.name]) * def.orbit, 0, Math.sin(orbitAngles[def.name]) * def.orbit);
-        group.rotation.y += 0.01;
+        def.mesh.rotation.y += def.rotationSpeed;
     });
-    orbitAngles.earth += 0.007;
+    orbitAngles.earth += earthOrbitSpeed;
     earthGroup.position.set(Math.cos(orbitAngles.earth) * EARTH_ORBIT_RADIUS, 0, Math.sin(orbitAngles.earth) * EARTH_ORBIT_RADIUS);
-    earthMesh.rotation.y += 0.006;
-    sun.rotation.y += 0.001;
+    earthMesh.rotation.y += earthRotationSpeed;
+    sun.rotation.y += 0.0006;
+
+    // Animate flare flicker/pulse
+    flares.forEach(f => {
+        const pulse = 0.5 + 0.5 * Math.sin(frameCount * 0.03 + f.phase);
+        f.mesh.material.opacity = f.baseOpacity * (0.5 + 0.5 * pulse);
+    });
 
     allMoons.forEach(m => {
         m.angle += m.speed;

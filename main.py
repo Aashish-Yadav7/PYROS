@@ -47,29 +47,55 @@ class LoggingWebPage(QWebEnginePage):
 GLOBE_HTML_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "globe.html")
 NEWS_REFRESH_MS = 20 * 60 * 1000  # match news.py's cache window (20 minutes)
 
+import difflib
+
 _PLANET_NAMES = (
     "mercury", "venus", "earth", "mars", "jupiter", "saturn", "uranus", "neptune", "sun",
     "moon", "phobos", "deimos", "io", "europa", "ganymede", "callisto",
     "titan", "titania", "triton",
 )
 _ZOOM_OUT_PHRASES = ("zoom out", "solar system", "show all planets", "whole system", "zoom all the way out")
+_FREE_FLOAT_PHRASES = (
+    "free float", "let me float", "float free", "free camera", "stop following",
+    "release camera", "let me move freely", "unlock the camera", "unlock view",
+)
 _ACTION_VERBS = (
     "zoom", "show", "go to", "focus", "take me to", "navigate to", "fly to",
     "warp to", "look at", "move to", "head to", "bring me to",
 )
 
 
+def _fuzzy_match_planet(word: str) -> str | None:
+    """Catches typos like 'satrun' -> 'saturn' using fuzzy string matching."""
+    matches = difflib.get_close_matches(word, _PLANET_NAMES, n=1, cutoff=0.7)
+    return matches[0] if matches else None
+
+
 def _detect_zoom_command(user_message: str) -> str | None:
     """
     Check if the user's message is a zoom command.
-    Returns 'zoom_out', a planet/moon name, or None.
+    Returns 'zoom_out', 'free_float', a planet/moon name, or None.
+    Tolerates common typos (e.g. 'satrun' -> 'saturn').
     """
     lowered = user_message.lower()
+
+    if any(phrase in lowered for phrase in _FREE_FLOAT_PHRASES):
+        return "free_float"
     if any(phrase in lowered for phrase in _ZOOM_OUT_PHRASES):
         return "zoom_out"
-    for planet in _PLANET_NAMES:
-        if planet in lowered and any(verb in lowered for verb in _ACTION_VERBS):
-            return planet
+
+    words = lowered.replace(",", " ").replace(".", " ").split()
+
+    if any(verb in lowered for verb in _ACTION_VERBS):
+        # Exact match first
+        for planet in _PLANET_NAMES:
+            if planet in lowered:
+                return planet
+        # Fall back to fuzzy match against each word (catches typos)
+        for word in words:
+            match = _fuzzy_match_planet(word)
+            if match:
+                return match
     return None
 
 SPACE_STYLESHEET = """
@@ -300,6 +326,9 @@ class PyrosWindow(QWidget):
             if zoom_target == "zoom_out":
                 self.globe_view.page().runJavaScript("window.zoomOutSolarSystem();")
                 self._show_pyros("Zooming out to show the whole solar system.")
+            elif zoom_target == "free_float":
+                self.globe_view.page().runJavaScript("window.releaseFocus();")
+                self._show_pyros("You're free to float anywhere now, Boss — drag, pan, and zoom wherever you like.")
             else:
                 self.globe_view.page().runJavaScript(f"window.zoomToPlanet('{zoom_target}');")
                 self._show_pyros(f"Zooming in on {zoom_target.title()}.")
