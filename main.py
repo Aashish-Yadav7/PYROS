@@ -52,7 +52,8 @@ import difflib
 _PLANET_NAMES = (
     "mercury", "venus", "earth", "mars", "jupiter", "saturn", "uranus", "neptune", "sun",
     "moon", "phobos", "deimos", "io", "europa", "ganymede", "callisto",
-    "titan", "titania", "triton",
+    "titan", "titania", "triton", "rhea", "iapetus", "dione", "oberon", "ariel",
+    "pluto", "ceres",
 )
 _ZOOM_OUT_PHRASES = ("zoom out", "solar system", "show all planets", "whole system", "zoom all the way out")
 _FREE_FLOAT_PHRASES = (
