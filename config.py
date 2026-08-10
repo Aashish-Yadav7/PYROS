@@ -20,6 +20,11 @@ API_KEYS = {
 # Single key, no rotation needed for this one
 CURRENTS_API_KEY = os.getenv("CURRENTS_API_KEY")
 
+# Voice output engine: "edge_tts" (default, works on any machine, no GPU
+# needed) or "chatterbox" (much higher quality, needs a real GPU - only
+# switch to this once you have one).
+TTS_ENGINE = os.getenv("TTS_ENGINE", "edge_tts")
+
 # Tracks which key index is currently active per provider
 _active_key_index = {provider: 0 for provider in API_KEYS}
 

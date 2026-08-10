@@ -1151,9 +1151,10 @@ scene.add(buildCoronaSprite());
 
 const planets = { sun: { position: new THREE.Vector3(0,0,0), getWorldPosition: function(v) { v.copy(this.position); return v; } } };
 const allMoons = [];
-function addMoon(parentGroup, distance, size, color, speed, name, texKey) {
+function addMoon(parentGroup, distance, size, color, speed, name, texKey, lowPoly) {
     const material = texKey ? makeRealMaterial(texKey) : new THREE.MeshPhongMaterial({ color: color });
-    const moon = new THREE.Mesh(new THREE.SphereGeometry(size, 24, 24), material);
+    const segments = lowPoly ? 6 : 24; // tiny procedural moons use cheap geometry for performance
+    const moon = new THREE.Mesh(new THREE.SphereGeometry(size, segments, segments), material);
     parentGroup.add(moon);
     const entry = { mesh: moon, distance, speed, angle: Math.random() * Math.PI * 2, name };
     allMoons.push(entry);
@@ -1200,6 +1201,22 @@ const planetDefs = [
     { name: 'neptune', radius: 3.88*EARTH_RADIUS_UNIT,  orbit: 30.07*AU, color: 0x4169e1, orbitDays: 59800, rotHours: 16.1,  tex: 'neptune', moons: [{ name: 'triton', dist: 11, size: 0.27, color: 0xaeb8c2, speed: 0.016 }] },
 ];
 
+// --- Procedural tiny moons: fills out the REAL total known-moon counts.
+// Most of these (beyond the few "major" named ones) are small, irregular,
+// often-captured objects a few km wide without well-documented individual
+// orbits - so these are represented honestly as small generic moons rather
+// than fabricating precise data science doesn't actually have for each one.
+function addProceduralMoons(group, count, innerDist, outerDist) {
+    for (let i = 0; i < count; i++) {
+        const dist = innerDist + Math.random() * (outerDist - innerDist);
+        const size = 0.02 + Math.random() * 0.05; // tiny, like real minor moons
+        const shade = 0.4 + Math.random() * 0.4;
+        const color = new THREE.Color(shade, shade * 0.95, shade * 0.9);
+        const speed = 0.002 + Math.random() * 0.02;
+        addMoon(group, dist, size, color.getHex(), speed, null, null, true);
+    }
+}
+
 const orbitAngles = { earth: 0 };
 let saturnRef = null;
 planetDefs.forEach(def => {
@@ -1211,6 +1228,14 @@ planetDefs.forEach(def => {
     def.mesh = mesh;
     if (def.name === 'saturn') saturnRef = { group, radius: def.radius };
     def.moons.forEach(m => addMoon(group, m.dist, m.size, m.color, m.speed, m.name));
+
+    // Real known-moon totals: Jupiter 95+, Saturn 146+, Uranus 28, Neptune 16
+    // (named majors above are already counted, rest filled proceduraly)
+    if (def.name === 'jupiter') addProceduralMoons(group, 91, 16, 55);
+    if (def.name === 'saturn') addProceduralMoons(group, 143, 10, 60);
+    if (def.name === 'uranus') addProceduralMoons(group, 25, 5, 20);
+    if (def.name === 'neptune') addProceduralMoons(group, 15, 4, 16);
+
     group.position.set(def.orbit, 0, 0);
     scene.add(group);
     planets[def.name] = group;

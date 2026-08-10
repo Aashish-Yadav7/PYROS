@@ -19,6 +19,14 @@ MODEL_NAME = "llama-3.3-70b-versatile"  # good general-purpose Groq model
 # Matches things like "call me Boss", "call me sir", "call me Aashish"
 _CALL_ME_PATTERN = re.compile(r"call me (\w+)", flags=re.IGNORECASE)
 
+# Matches "news from/in/about X", "what's happening in X", etc. to extract
+# a region/country name for filtered news search.
+_REGION_PATTERNS = [
+    re.compile(r"news (?:from|in|about) ([a-zA-Z\s]+?)(?:[\?\.\!]|$)", re.IGNORECASE),
+    re.compile(r"happening (?:in|with) ([a-zA-Z\s]+?)(?:[\?\.\!]|$)", re.IGNORECASE),
+    re.compile(r"what'?s going on (?:in|with) ([a-zA-Z\s]+?)(?:[\?\.\!]|$)", re.IGNORECASE),
+]
+
 # Keywords that trigger a real news fetch, so we don't call the API every message
 _NEWS_KEYWORDS = (
     "news", "current event", "current affairs", "affairs", "headline",
@@ -42,6 +50,22 @@ def _wants_news(user_message: str) -> bool:
     """Check if the user's message is asking about news/current events."""
     lowered = user_message.lower()
     return any(keyword in lowered for keyword in _NEWS_KEYWORDS)
+
+
+def _detect_news_region(user_message: str) -> str | None:
+    """
+    If the user asked for news about a specific region/country (e.g.
+    "news from Japan", "what's happening in France"), return that region
+    name. Otherwise return None (meaning: general/global news).
+    """
+    for pattern in _REGION_PATTERNS:
+        match = pattern.search(user_message)
+        if match:
+            region = match.group(1).strip()
+            # Ignore junk matches like "news happening" with no real region
+            if region and len(region) > 1 and region.lower() not in ("here", "now", "today"):
+                return region
+    return None
 
 
 def _last_reply_was_news(chat_history: list) -> bool:
@@ -68,7 +92,11 @@ def ask_pyros(user_message: str, chat_history: list, preferred_address: str | No
     # Fetch real news if the user is asking about it directly, OR if the
     # previous reply was already news-based (likely a follow-up question)
     if _wants_news(user_message) or _last_reply_was_news(chat_history):
-        headlines = news.get_all_current_news()
+        region = _detect_news_region(user_message)
+        if region:
+            headlines = news.get_news_for_region(region)
+        else:
+            headlines = news.get_all_current_news()
         system_content += f"""
 
 Here is real, current news data to use in your answer:

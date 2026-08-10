@@ -30,6 +30,24 @@ FEEDS = {
 CACHE_MINUTES = 20  # how long a fetched result stays valid before refreshing
 _cache = {"data": None, "timestamp": 0}
 _gui_cache = {"data": None, "timestamp": 0}
+_region_cache = {}  # keyed by region query string, each entry {"data":..., "timestamp":...}
+
+# Common country name -> 2-letter ISO code, for Currents API's country filter.
+# Not exhaustive - anything not listed here falls back to keyword search,
+# which still works for regions/cities/countries not in this short list.
+COUNTRY_CODES = {
+    "united states": "US", "usa": "US", "america": "US",
+    "united kingdom": "GB", "uk": "GB", "britain": "GB",
+    "india": "IN", "japan": "JP", "china": "CN", "france": "FR",
+    "germany": "DE", "italy": "IT", "spain": "ES", "russia": "RU",
+    "canada": "CA", "australia": "AU", "brazil": "BR", "mexico": "MX",
+    "south korea": "KR", "korea": "KR", "pakistan": "PK", "israel": "IL",
+    "iran": "IR", "iraq": "IQ", "ukraine": "UA", "egypt": "EG",
+    "south africa": "ZA", "nigeria": "NG", "indonesia": "ID",
+    "saudi arabia": "SA", "turkey": "TR", "netherlands": "NL",
+    "sweden": "SE", "norway": "NO", "poland": "PL", "philippines": "PH",
+    "vietnam": "VN", "thailand": "TH", "singapore": "SG", "argentina": "AR",
+}
 
 
 # ---------- PRIMARY: Currents API ----------
@@ -80,6 +98,81 @@ def _get_from_rss(limit_per_source: int = 5) -> list[dict]:
         except Exception as e:
             print(f"[news] RSS fetch failed for {source}: {e}")
     return all_articles
+
+
+# ---------- REGION-SPECIFIC: Currents /v1/search ----------
+
+def _get_from_currents_search(region: str, limit: int = 10) -> list[dict] | None:
+    """
+    Search Currents API for news about a specific region/country/topic.
+    Uses the proper country code if we recognize the name, otherwise falls
+    back to free-text keyword search (still works for cities, regions,
+    or countries not in our short COUNTRY_CODES list).
+    """
+    if not config.CURRENTS_API_KEY:
+        return None
+
+    region_lower = region.strip().lower()
+    country_code = COUNTRY_CODES.get(region_lower)
+
+    params = {"apiKey": config.CURRENTS_API_KEY, "language": "en"}
+    if country_code:
+        params["country"] = country_code
+    else:
+        params["keywords"] = region
+
+    try:
+        response = requests.get(
+            "https://api.currentsapi.services/v1/search",
+            params=params,
+            timeout=6,
+        )
+        data = response.json()
+        if data.get("status") == "ok":
+            return [
+                {
+                    "title": article.get("title", ""),
+                    "description": article.get("description", ""),
+                    "category": ", ".join(article.get("category", [])) or "general",
+                    "url": article.get("url", ""),
+                }
+                for article in data["news"][:limit]
+            ]
+    except Exception as e:
+        print(f"[news] Currents region search failed: {e}")
+
+    return None
+
+
+def get_news_for_region(region: str, limit: int = 10) -> str:
+    """
+    Fetch current news specifically about a region/country (e.g. "Japan",
+    "France", "Mumbai"), formatted as readable text for the LLM. Cached per
+    region so repeated questions about the same place don't re-hit the API.
+    """
+    now = time.time()
+    cache_key = region.strip().lower()
+    cached = _region_cache.get(cache_key)
+    if cached and (now - cached["timestamp"]) / 60 < CACHE_MINUTES:
+        return cached["data"]
+
+    articles = _get_from_currents_search(region, limit)
+
+    if not articles:
+        result = f"(Couldn't find current news specifically about {region} right now.)"
+        return result
+
+    blocks = []
+    for i, article in enumerate(articles, 1):
+        desc = article["description"].strip()
+        block = f"{i}. {article['title']} [{article['category']}]"
+        if desc:
+            block += f"\n   Details: {desc}"
+        blocks.append(block)
+
+    result = f"Current news about {region} (source: Currents API):\n" + "\n".join(blocks)
+    _region_cache[cache_key] = {"data": result, "timestamp": now}
+    return result
 
 
 # ---------- PUBLIC INTERFACE for the LLM (with caching) ----------
