@@ -35,6 +35,7 @@ from PyQt6.QtWebEngineCore import QWebEngineSettings, QWebEnginePage
 import memory
 import brain
 import news
+import voice
 from identity import CREATOR
 
 
@@ -52,7 +53,7 @@ import difflib
 _PLANET_NAMES = (
     "mercury", "venus", "earth", "mars", "jupiter", "saturn", "uranus", "neptune", "sun",
     "moon", "phobos", "deimos", "io", "europa", "ganymede", "callisto",
-    "titan", "titania", "triton", "rhea", "iapetus", "dione", "oberon", "ariel",
+    "titan", "titania", "triton", "enceladus", "mimas", "oberon", "miranda",
     "pluto", "ceres",
 )
 _ZOOM_OUT_PHRASES = ("zoom out", "solar system", "show all planets", "whole system", "zoom all the way out")
@@ -182,6 +183,25 @@ class NewsFetchThread(QThread):
         self.news_ready.emit(result)
 
 
+class ListenThread(QThread):
+    """Records mic + transcribes via Whisper in the background."""
+    heard_text = pyqtSignal(str)
+
+    def run(self):
+        text = voice.listen(duration_seconds=5)
+        self.heard_text.emit(text)
+
+
+class SpeakThread(QThread):
+    """Speaks text out loud in the background so playback doesn't freeze the UI."""
+    def __init__(self, text):
+        super().__init__()
+        self.text = text
+
+    def run(self):
+        voice.speak(self.text)
+
+
 class PyrosWindow(QWidget):
     def __init__(self):
         super().__init__()
@@ -209,11 +229,23 @@ class PyrosWindow(QWidget):
         self.input_box.returnPressed.connect(self.handle_send)
         input_row.addWidget(self.input_box)
 
+        self.mic_button = QPushButton("🎤")
+        self.mic_button.setFixedWidth(44)
+        self.mic_button.clicked.connect(self.handle_mic_click)
+        input_row.addWidget(self.mic_button)
+
         self.send_button = QPushButton("Send")
         self.send_button.clicked.connect(self.handle_send)
         input_row.addWidget(self.send_button)
 
         chat_panel.addLayout(input_row)
+
+        voice_toggle_row = QHBoxLayout()
+        self.voice_enabled = False
+        self.voice_toggle_button = QPushButton("🔇 Voice replies: OFF")
+        self.voice_toggle_button.clicked.connect(self.toggle_voice)
+        voice_toggle_row.addWidget(self.voice_toggle_button)
+        chat_panel.addLayout(voice_toggle_row)
 
         # Right: globe on top (no border, blends into space bg), news below (bordered)
         right_panel = QVBoxLayout()
@@ -276,6 +308,26 @@ class PyrosWindow(QWidget):
         url = item.data(Qt.ItemDataRole.UserRole)
         if url:
             webbrowser.open(url)
+
+    def toggle_voice(self):
+        self.voice_enabled = not self.voice_enabled
+        label = "🔊 Voice replies: ON" if self.voice_enabled else "🔇 Voice replies: OFF"
+        self.voice_toggle_button.setText(label)
+
+    def handle_mic_click(self):
+        self.mic_button.setEnabled(False)
+        self.mic_button.setText("🎙️...")
+        self.listen_thread = ListenThread()
+        self.listen_thread.heard_text.connect(self._on_heard)
+        self.listen_thread.start()
+
+    def _on_heard(self, text: str):
+        self.mic_button.setEnabled(True)
+        self.mic_button.setText("🎤")
+        if text:
+            self.input_box.setText(text)
+        else:
+            self._show_pyros("(Didn't catch that, Boss — mic might be silent or unavailable.)")
 
     def _run_onboarding(self):
         """Very simple onboarding using the chat display itself."""
@@ -352,6 +404,10 @@ class PyrosWindow(QWidget):
 
         if "remember" in user_text.lower():
             memory.remember_fact(user_text)
+
+        if self.voice_enabled:
+            self.speak_thread = SpeakThread(reply)
+            self.speak_thread.start()
 
         self.input_box.setEnabled(True)
         self.send_button.setEnabled(True)
