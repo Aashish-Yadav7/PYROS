@@ -270,8 +270,8 @@ class PyrosWindow(QWidget):
         chat_panel.addLayout(input_row)
 
         voice_toggle_row = QHBoxLayout()
-        self.voice_enabled = False
-        self.voice_toggle_button = QPushButton("🔇 Voice replies: OFF")
+        self.voice_enabled = True
+        self.voice_toggle_button = QPushButton("🔊 Voice replies: ON")
         self.voice_toggle_button.clicked.connect(self.toggle_voice)
         voice_toggle_row.addWidget(self.voice_toggle_button)
 
