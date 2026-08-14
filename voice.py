@@ -21,6 +21,16 @@ import asyncio
 import tempfile
 
 import config
+import pygame
+
+# Mixer is initialized ONCE, not per-call - this is what makes stopping
+# mid-sentence actually reliable instead of fragile.
+_mixer_ready = False
+try:
+    pygame.mixer.init()
+    _mixer_ready = True
+except Exception as e:
+    print(f"[voice] Audio device init failed ({e}) - voice output disabled until fixed.")
 
 # ---------- SPEECH-TO-TEXT (Whisper) ----------
 
@@ -64,8 +74,14 @@ def record_from_microphone(duration_seconds: int = 5) -> str:
     CHANNELS = 1
     RATE = 16000  # Whisper expects 16kHz
 
-    pa = pyaudio.PyAudio()
-    stream = pa.open(format=FORMAT, channels=CHANNELS, rate=RATE, input=True, frames_per_buffer=CHUNK)
+    try:
+        pa = pyaudio.PyAudio()
+        stream = pa.open(format=FORMAT, channels=CHANNELS, rate=RATE, input=True, frames_per_buffer=CHUNK)
+    except Exception as e:
+        print(f"[voice] Could not open microphone: {e}")
+        print("[voice] Check: is a microphone connected? Does Windows have mic "
+              "permissions enabled for this app? Settings > Privacy > Microphone.")
+        return ""
 
     print(f"[voice] Recording for {duration_seconds}s...")
     frames = []
@@ -90,6 +106,8 @@ def record_from_microphone(duration_seconds: int = 5) -> str:
 def listen(duration_seconds: int = 5) -> str:
     """Record from mic and transcribe in one step. Returns the spoken text."""
     audio_path = record_from_microphone(duration_seconds)
+    if not audio_path:
+        return ""
     return transcribe_audio(audio_path)
 
 
@@ -98,22 +116,48 @@ def listen(duration_seconds: int = 5) -> str:
 DEFAULT_EDGE_VOICE = "en-US-AriaNeural"  # natural-sounding, good default
 
 
+def stop_speaking() -> None:
+    """
+    Immediately stop whatever Pyros is currently saying. Safe to call
+    even if nothing is playing. This is what makes her interruptible.
+    """
+    if not _mixer_ready:
+        return
+    try:
+        pygame.mixer.music.stop()
+    except Exception as e:
+        print(f"[voice] stop_speaking error (harmless if nothing was playing): {e}")
+
+
+def is_speaking() -> bool:
+    """True if Pyros is currently in the middle of saying something."""
+    if not _mixer_ready:
+        return False
+    try:
+        return pygame.mixer.music.get_busy()
+    except Exception:
+        return False
+
+
 def _speak_edge_tts(text: str) -> None:
     """Speak text using edge-tts (cloud, free, no GPU needed)."""
+    if not _mixer_ready:
+        print("[voice] Can't speak - no audio device available.")
+        return
+
     import edge_tts
-    import pygame
 
     async def _generate_and_play():
         temp_path = os.path.join(tempfile.gettempdir(), "pyros_speech.mp3")
-        communicate = edge_tts.Communicate(text, DEFAULT_EDGE_VOICE)
+        # rate="+8%" tightens the awkward pauses edge-tts adds at commas/
+        # periods by default, making delivery feel less choppy/robotic.
+        communicate = edge_tts.Communicate(text, DEFAULT_EDGE_VOICE, rate="+8%")
         await communicate.save(temp_path)
 
-        pygame.mixer.init()
         pygame.mixer.music.load(temp_path)
         pygame.mixer.music.play()
         while pygame.mixer.music.get_busy():
             await asyncio.sleep(0.1)
-        pygame.mixer.quit()
 
     asyncio.run(_generate_and_play())
 
@@ -142,34 +186,94 @@ def _speak_chatterbox(text: str) -> None:
     3. This function will then be used automatically instead of edge_tts.
     """
     try:
-        import pygame
-
         model = _get_chatterbox_model()
         wav = model.generate(text)
         temp_path = os.path.join(tempfile.gettempdir(), "pyros_speech_chatterbox.wav")
         model.save_audio(wav, temp_path)
 
-        pygame.mixer.init()
         pygame.mixer.music.load(temp_path)
         pygame.mixer.music.play()
         while pygame.mixer.music.get_busy():
-            pass
-        pygame.mixer.quit()
+            pygame.time.wait(100)
 
     except Exception as e:
         print(f"[voice] Chatterbox unavailable ({e}), falling back to edge_tts.")
         _speak_edge_tts(text)
 
 
+_vibevoice_model = None
+_vibevoice_processor = None
+
+
+def _get_vibevoice_model():
+    """
+    Loads VibeVoice-Streaming-0.5B (real-time, single-speaker model).
+    Needs the repo cloned and installed first - see _speak_vibevoice below.
+    """
+    global _vibevoice_model, _vibevoice_processor
+    if _vibevoice_model is None:
+        from vibevoice.modular.modeling_vibevoice_inference import VibeVoiceForConditionalGenerationInference
+        from vibevoice.processor.vibevoice_processor import VibeVoiceProcessor
+        print("[voice] Loading VibeVoice-Streaming-0.5B (needs GPU)...")
+        model_path = "microsoft/VibeVoice-Realtime-0.5B"
+        _vibevoice_processor = VibeVoiceProcessor.from_pretrained(model_path)
+        _vibevoice_model = VibeVoiceForConditionalGenerationInference.from_pretrained(
+            model_path, torch_dtype="auto", device_map="cuda"
+        )
+    return _vibevoice_model, _vibevoice_processor
+
+
+def _speak_vibevoice(text: str, speaker_name: str = "Samuel") -> None:
+    """
+    Speak text using VibeVoice-Streaming-0.5B (Microsoft's model, from your
+    fork at github.com/Aashish-Yadav7/VibeVoice7). Real-time, expressive,
+    natural conversational flow - much better than edge_tts's choppy pacing.
+    Needs a real GPU. Falls back to edge_tts automatically if unavailable.
+
+    TO ACTIVATE once you have a GPU laptop:
+    1. git clone https://github.com/Aashish-Yadav7/VibeVoice7.git
+    2. cd VibeVoice7 && uv pip install -e .
+       (or: pip install -e . if you don't use uv)
+    3. Set TTS_ENGINE=vibevoice in .env
+    4. Voice presets available: Carter, Davis, Emma, Frank, Grace, Mike
+       (English), Samuel (Indian English) - change speaker_name above or
+       pass a different one if you want a different voice.
+    """
+    try:
+        import torch
+        import soundfile as sf
+
+        model, processor = _get_vibevoice_model()
+        inputs = processor(text=[text], voice_samples=[speaker_name], return_tensors="pt")
+        with torch.no_grad():
+            output = model.generate(**inputs, max_new_tokens=None, cfg_scale=1.5)
+
+        temp_path = os.path.join(tempfile.gettempdir(), "pyros_speech_vibevoice.wav")
+        sf.write(temp_path, output.speech_outputs[0].cpu().numpy(), 24000)
+
+        pygame.mixer.music.load(temp_path)
+        pygame.mixer.music.play()
+        while pygame.mixer.music.get_busy():
+            pygame.time.wait(100)
+
+    except Exception as e:
+        print(f"[voice] VibeVoice unavailable ({e}), falling back to edge_tts.")
+        _speak_edge_tts(text)
+
+
 def speak(text: str) -> None:
     """
     Speak the given text out loud, using whichever engine is set as
-    TTS_ENGINE in .env ("edge_tts" or "chatterbox"). Defaults to edge_tts
-    if not set, since that works on any machine with no GPU required.
+    TTS_ENGINE in .env ("edge_tts", "chatterbox", or "vibevoice").
+    Defaults to edge_tts if not set, since that works on any machine
+    with no GPU required.
     """
+    stop_speaking()
     engine = getattr(config, "TTS_ENGINE", "edge_tts")
     if engine == "chatterbox":
         _speak_chatterbox(text)
+    elif engine == "vibevoice":
+        _speak_vibevoice(text)
     else:
         _speak_edge_tts(text)
 

@@ -11,6 +11,7 @@ populated from news.py with real fetched, clickable headlines.
 import os
 import re
 import sys
+import traceback
 import webbrowser
 
 # Must be set before QApplication is created - fixes black WebGL screen on
@@ -162,6 +163,7 @@ QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
 class ThinkingThread(QThread):
     """Runs the LLM call in the background so the UI doesn't freeze."""
     reply_ready = pyqtSignal(str)
+    error_occurred = pyqtSignal(str)
 
     def __init__(self, user_message, history, preferred_address):
         super().__init__()
@@ -170,36 +172,62 @@ class ThinkingThread(QThread):
         self.preferred_address = preferred_address
 
     def run(self):
-        reply = brain.ask_pyros(self.user_message, self.history, self.preferred_address)
-        self.reply_ready.emit(reply)
+        try:
+            reply = brain.ask_pyros(self.user_message, self.history, self.preferred_address)
+            self.reply_ready.emit(reply)
+        except Exception:
+            err = traceback.format_exc()
+            print(f"[ThinkingThread] CRASH:\n{err}")
+            self.error_occurred.emit(err)
 
 
 class NewsFetchThread(QThread):
     """Fetches news in the background so the UI doesn't freeze."""
     news_ready = pyqtSignal(list)
+    error_occurred = pyqtSignal(str)
 
     def run(self):
-        result = news.get_headlines_for_display(target_count=200)
-        self.news_ready.emit(result)
+        try:
+            result = news.get_headlines_for_display(target_count=200)
+            self.news_ready.emit(result)
+        except Exception:
+            err = traceback.format_exc()
+            print(f"[NewsFetchThread] CRASH:\n{err}")
+            self.error_occurred.emit(err)
 
 
 class ListenThread(QThread):
     """Records mic + transcribes via Whisper in the background."""
     heard_text = pyqtSignal(str)
+    error_occurred = pyqtSignal(str)
 
     def run(self):
-        text = voice.listen(duration_seconds=5)
-        self.heard_text.emit(text)
+        try:
+            text = voice.listen(duration_seconds=5)
+            self.heard_text.emit(text)
+        except Exception:
+            err = traceback.format_exc()
+            print(f"[ListenThread] CRASH:\n{err}")
+            self.error_occurred.emit(err)
 
 
 class SpeakThread(QThread):
     """Speaks text out loud in the background so playback doesn't freeze the UI."""
+    finished_speaking = pyqtSignal()
+    error_occurred = pyqtSignal(str)
+
     def __init__(self, text):
         super().__init__()
         self.text = text
 
     def run(self):
-        voice.speak(self.text)
+        try:
+            voice.speak(self.text)
+            self.finished_speaking.emit()
+        except Exception:
+            err = traceback.format_exc()
+            print(f"[SpeakThread] CRASH:\n{err}")
+            self.error_occurred.emit(err)
 
 
 class PyrosWindow(QWidget):
@@ -212,6 +240,7 @@ class PyrosWindow(QWidget):
         self.history = memory.load_history()
         self.user_name = memory.get_user_name()
         self.preferred_address = memory.get_preferred_address()
+        self._active_threads = []  # keeps thread objects alive until they finish (fixes audio cutoff bug)
 
         # --- Overall layout: chat on the left, globe+news fixed on the right ---
         main_layout = QHBoxLayout()
@@ -245,6 +274,11 @@ class PyrosWindow(QWidget):
         self.voice_toggle_button = QPushButton("🔇 Voice replies: OFF")
         self.voice_toggle_button.clicked.connect(self.toggle_voice)
         voice_toggle_row.addWidget(self.voice_toggle_button)
+
+        self.stop_button = QPushButton("⏹ Stop speaking")
+        self.stop_button.clicked.connect(self.handle_stop_speaking)
+        voice_toggle_row.addWidget(self.stop_button)
+
         chat_panel.addLayout(voice_toggle_row)
 
         # Right: globe on top (no border, blends into space bg), news below (bordered)
@@ -287,10 +321,58 @@ class PyrosWindow(QWidget):
         self.news_timer.timeout.connect(self.refresh_news)
         self.news_timer.start(NEWS_REFRESH_MS)
 
+        # --- Idle self-talk: if you go quiet for a while, she speaks up on
+        # her own (checking in, sharing a thought) instead of just waiting ---
+        IDLE_TRIGGER_MS = 4 * 60 * 1000  # 4 minutes of no activity
+        self.idle_timer = QTimer()
+        self.idle_timer.setSingleShot(True)
+        self.idle_timer.timeout.connect(self._trigger_idle_speech)
+        self.idle_timer.start(IDLE_TRIGGER_MS)
+
+    def _reset_idle_timer(self):
+        self.idle_timer.stop()
+        self.idle_timer.start(4 * 60 * 1000)
+
+    def _trigger_idle_speech(self):
+        """Called when there's been no user activity for a while - Pyros
+        speaks up on her own instead of just sitting silently."""
+        if not self.user_name or not self.preferred_address:
+            self._reset_idle_timer()
+            return  # don't self-talk during onboarding
+
+        idle_prompt = (
+            "(No input from the user for a few minutes. Say something short and "
+            "natural on your own initiative - a quick observation, a check-in, "
+            "or picking up on something from earlier. Keep it brief.)"
+        )
+        thread = ThinkingThread(idle_prompt, self.history, self.preferred_address)
+        thread.reply_ready.connect(self._on_idle_reply)
+        thread.error_occurred.connect(self._on_thread_error)
+        self._track_thread(thread)
+        thread.start()
+
+    def _on_idle_reply(self, reply: str):
+        self._show_pyros(reply)
+        memory.log_exchange("(idle)", reply)
+        self.history.append({"role": "assistant", "content": reply})
+        if self.voice_enabled:
+            speak_thread = SpeakThread(reply)
+            speak_thread.error_occurred.connect(self._on_thread_error)
+            self._track_thread(speak_thread)
+            speak_thread.start()
+        self._reset_idle_timer()
+
     def refresh_news(self):
         self.news_thread = NewsFetchThread()
         self.news_thread.news_ready.connect(self._populate_news)
+        self.news_thread.error_occurred.connect(self._on_thread_error)
+        self._track_thread(self.news_thread)
         self.news_thread.start()
+
+    def _on_thread_error(self, error_text: str):
+        """A background thread crashed - show it instead of silently dying."""
+        print(f"[main] Background thread error:\n{error_text}")
+        self._show_pyros(f"(Something went wrong in the background — check the terminal for details. I'm still here though.)")
 
     def _populate_news(self, articles: list):
         self.news_list.clear()
@@ -309,16 +391,32 @@ class PyrosWindow(QWidget):
         if url:
             webbrowser.open(url)
 
+    def _track_thread(self, thread):
+        """
+        Keep a real reference to this thread until it finishes, instead of
+        overwriting self.xxx_thread (which let Python garbage-collect and
+        kill still-running threads mid-task - the actual cause of audio
+        cutting off mid-sentence).
+        """
+        self._active_threads.append(thread)
+        thread.finished.connect(lambda: self._active_threads.remove(thread) if thread in self._active_threads else None)
+
     def toggle_voice(self):
         self.voice_enabled = not self.voice_enabled
         label = "🔊 Voice replies: ON" if self.voice_enabled else "🔇 Voice replies: OFF"
         self.voice_toggle_button.setText(label)
 
+    def handle_stop_speaking(self):
+        voice.stop_speaking()
+
     def handle_mic_click(self):
+        self._reset_idle_timer()
         self.mic_button.setEnabled(False)
         self.mic_button.setText("🎙️...")
         self.listen_thread = ListenThread()
         self.listen_thread.heard_text.connect(self._on_heard)
+        self.listen_thread.error_occurred.connect(self._on_thread_error)
+        self._track_thread(self.listen_thread)
         self.listen_thread.start()
 
     def _on_heard(self, text: str):
@@ -348,6 +446,7 @@ class PyrosWindow(QWidget):
         user_text = self.input_box.text().strip()
         if not user_text:
             return
+        self._reset_idle_timer()
         self.input_box.clear()
         self._show_user(user_text)
 
@@ -393,6 +492,8 @@ class PyrosWindow(QWidget):
 
         self.thread = ThinkingThread(user_text, self.history, self.preferred_address)
         self.thread.reply_ready.connect(lambda reply: self._on_reply(user_text, reply))
+        self.thread.error_occurred.connect(self._on_thread_error)
+        self._track_thread(self.thread)
         self.thread.start()
 
     def _on_reply(self, user_text: str, reply: str):
@@ -406,8 +507,10 @@ class PyrosWindow(QWidget):
             memory.remember_fact(user_text)
 
         if self.voice_enabled:
-            self.speak_thread = SpeakThread(reply)
-            self.speak_thread.start()
+            speak_thread = SpeakThread(reply)
+            speak_thread.error_occurred.connect(self._on_thread_error)
+            self._track_thread(speak_thread)
+            speak_thread.start()
 
         self.input_box.setEnabled(True)
         self.send_button.setEnabled(True)
@@ -415,6 +518,20 @@ class PyrosWindow(QWidget):
 
 
 if __name__ == "__main__":
+    def _log_uncaught_exception(exc_type, exc_value, exc_traceback):
+        """
+        Catches ANY error that would otherwise silently close the app.
+        Writes full details to crash_log.txt so we can actually diagnose
+        what happened, instead of the app just vanishing.
+        """
+        error_text = "".join(traceback.format_exception(exc_type, exc_value, exc_traceback))
+        print(f"[FATAL] Uncaught exception:\n{error_text}")
+        log_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "crash_log.txt")
+        with open(log_path, "a", encoding="utf-8") as f:
+            f.write(f"\n--- Crash ---\n{error_text}\n")
+
+    sys.excepthook = _log_uncaught_exception
+
     app = QApplication(sys.argv)
     window = PyrosWindow()
     window.show()
