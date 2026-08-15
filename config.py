@@ -21,9 +21,14 @@ API_KEYS = {
 CURRENTS_API_KEY = os.getenv("CURRENTS_API_KEY")
 
 # Voice output engine: "edge_tts" (default, works on any machine, no GPU
-# needed) or "chatterbox" (much higher quality, needs a real GPU - only
-# switch to this once you have one).
+# needed) or "chatterbox"/"vibevoice" (much higher quality, needs a real
+# GPU - either locally later, or via Colab now, see colab_voice_server.py).
 TTS_ENGINE = os.getenv("TTS_ENGINE", "edge_tts")
+
+# If using VibeVoice via Colab (since your laptop has no GPU yet), set
+# these from what the Colab notebook prints when you run it.
+VIBEVOICE_API_URL = os.getenv("VIBEVOICE_API_URL")
+VIBEVOICE_API_SECRET = os.getenv("VIBEVOICE_API_SECRET")
 
 # Tracks which key index is currently active per provider
 _active_key_index = {provider: 0 for provider in API_KEYS}

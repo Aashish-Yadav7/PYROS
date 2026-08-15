@@ -225,20 +225,61 @@ def _get_vibevoice_model():
 
 def _speak_vibevoice(text: str, speaker_name: str = "Samuel") -> None:
     """
-    Speak text using VibeVoice-Streaming-0.5B (Microsoft's model, from your
-    fork at github.com/Aashish-Yadav7/VibeVoice7). Real-time, expressive,
-    natural conversational flow - much better than edge_tts's choppy pacing.
-    Needs a real GPU. Falls back to edge_tts automatically if unavailable.
+    Speak text using VibeVoice 1.5B - either a REMOTE Colab server (see
+    colab_voice_server.py, since your current laptop has no GPU) or a LOCAL
+    install once you have a GPU laptop. Falls back to edge_tts automatically
+    if neither is available.
 
-    TO ACTIVATE once you have a GPU laptop:
-    1. git clone https://github.com/Aashish-Yadav7/VibeVoice7.git
-    2. cd VibeVoice7 && uv pip install -e .
-       (or: pip install -e . if you don't use uv)
+    TO USE VIA COLAB (works on your current laptop):
+    1. Run colab_voice_server.py in Google Colab (free T4 GPU)
+    2. Copy the printed URL into .env as: VIBEVOICE_API_URL=<url>
     3. Set TTS_ENGINE=vibevoice in .env
-    4. Voice presets available: Carter, Davis, Emma, Frank, Grace, Mike
-       (English), Samuel (Indian English) - change speaker_name above or
-       pass a different one if you want a different voice.
+    This function automatically detects and uses the remote server.
+
+    TO USE LOCALLY (once you have a GPU laptop):
+    1. git clone https://github.com/Aashish-Yadav7/VibeVoice7.git
+    2. cd VibeVoice7 && pip install -e .
+    3. Don't set VIBEVOICE_API_URL - it'll load the model locally instead.
     """
+    api_url = getattr(config, "VIBEVOICE_API_URL", None)
+
+    if api_url:
+        _speak_vibevoice_remote(text, api_url, speaker_name)
+    else:
+        _speak_vibevoice_local(text, speaker_name)
+
+
+def _speak_vibevoice_remote(text: str, api_url: str, speaker_name: str) -> None:
+    """Calls a Colab-hosted VibeVoice server over HTTP, authenticated."""
+    try:
+        import requests
+
+        api_secret = getattr(config, "VIBEVOICE_API_SECRET", "")
+        response = requests.post(
+            f"{api_url.rstrip('/')}/speak",
+            json={"text": text, "speaker": speaker_name},
+            headers={"X-API-Secret": api_secret},
+            timeout=30,
+        )
+        response.raise_for_status()
+
+        temp_path = os.path.join(tempfile.gettempdir(), "pyros_speech_vibevoice_remote.wav")
+        with open(temp_path, "wb") as f:
+            f.write(response.content)
+
+        pygame.mixer.music.load(temp_path)
+        pygame.mixer.music.play()
+        while pygame.mixer.music.get_busy():
+            pygame.time.wait(100)
+
+    except Exception as e:
+        print(f"[voice] Colab VibeVoice server unreachable ({e}) - is the "
+              f"Colab notebook still running? Falling back to edge_tts.")
+        _speak_edge_tts(text)
+
+
+def _speak_vibevoice_local(text: str, speaker_name: str) -> None:
+    """Loads and runs VibeVoice directly on this machine (needs a real GPU)."""
     try:
         import torch
         import soundfile as sf
@@ -257,7 +298,7 @@ def _speak_vibevoice(text: str, speaker_name: str = "Samuel") -> None:
             pygame.time.wait(100)
 
     except Exception as e:
-        print(f"[voice] VibeVoice unavailable ({e}), falling back to edge_tts.")
+        print(f"[voice] Local VibeVoice unavailable ({e}), falling back to edge_tts.")
         _speak_edge_tts(text)
 
 
