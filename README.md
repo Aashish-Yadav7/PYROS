@@ -210,10 +210,7 @@ Step ten is simply to begin. Type a message, or use the microphone button to spe
 
 ---
 
-## Screenshots
-
-Add real screenshots of the running application here: the chat window mid-conversation, the solar system during navigation, and the news panel populated with live headlines.
-
+#
 ---
 
 ## Roadmap
