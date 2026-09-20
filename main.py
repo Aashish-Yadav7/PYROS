@@ -37,6 +37,7 @@ import memory
 import brain
 import news
 import voice
+import automation
 from identity import CREATOR
 
 
@@ -230,6 +231,36 @@ class SpeakThread(QThread):
             self.error_occurred.emit(err)
 
 
+class AutomationThread(QThread):
+    """
+    Runs a real-world automation action (typing in Notepad, sending a
+    WhatsApp message) in the background, since these involve real delays
+    (waiting for windows/pages to open) that would otherwise freeze the UI.
+    """
+    action_done = pyqtSignal(str)
+    error_occurred = pyqtSignal(str)
+
+    def __init__(self, action, *args):
+        super().__init__()
+        self.action = action  # "notepad" or "whatsapp"
+        self.args = args
+
+    def run(self):
+        try:
+            if self.action == "notepad":
+                text = self.args[0]
+                automation.open_notepad_and_type(text)
+                self.action_done.emit(f"Done — typed that into a new Notepad window.")
+            elif self.action == "whatsapp":
+                phone, message = self.args
+                result = automation.send_whatsapp_message(phone, message)
+                self.action_done.emit(result)
+        except Exception:
+            err = traceback.format_exc()
+            print(f"[AutomationThread] CRASH:\n{err}")
+            self.error_occurred.emit(err)
+
+
 class PyrosWindow(QWidget):
     def __init__(self):
         super().__init__()
@@ -374,6 +405,10 @@ class PyrosWindow(QWidget):
         print(f"[main] Background thread error:\n{error_text}")
         self._show_pyros(f"(Something went wrong in the background — check the terminal for details. I'm still here though.)")
 
+    def _on_automation_done(self, result_message: str):
+        """An automation action (Notepad, WhatsApp) finished - report the result."""
+        self._show_pyros(result_message)
+
     def _populate_news(self, articles: list):
         self.news_list.clear()
         for article in articles:
@@ -484,6 +519,29 @@ class PyrosWindow(QWidget):
             else:
                 self.globe_view.page().runJavaScript(f"window.zoomToPlanet('{zoom_target}');")
                 self._show_pyros(f"Zooming in on {zoom_target.title()}.")
+            return
+
+        # Check if this is a Notepad automation request
+        notepad_text = brain.detect_notepad_request(user_text)
+        if notepad_text:
+            self._show_pyros("On it — opening Notepad now.")
+            thread = AutomationThread("notepad", notepad_text)
+            thread.action_done.connect(self._on_automation_done)
+            thread.error_occurred.connect(self._on_thread_error)
+            self._track_thread(thread)
+            thread.start()
+            return
+
+        # Check if this is a WhatsApp automation request
+        whatsapp_request = brain.detect_whatsapp_request(user_text)
+        if whatsapp_request:
+            phone, message = whatsapp_request
+            self._show_pyros(f"On it — sending that to {phone} now.")
+            thread = AutomationThread("whatsapp", phone, message)
+            thread.action_done.connect(self._on_automation_done)
+            thread.error_occurred.connect(self._on_thread_error)
+            self._track_thread(thread)
+            thread.start()
             return
 
         # Disable input while she's thinking

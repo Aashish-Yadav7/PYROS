@@ -11,10 +11,12 @@ import re
 from groq import Groq
 import config
 import news
+import self_awareness
+import weather
 from identity import CREATOR
 from personality import get_system_prompt
 
-MODEL_NAME = "llama-3.3-70b-versatile"  # good general-purpose Groq model
+MODEL_NAME = "openai/gpt-oss-120b"  # Groq deprecated llama-3.3-70b-versatile in June 2026
 
 # Matches things like "call me Boss", "call me sir", "call me Aashish"
 _CALL_ME_PATTERN = re.compile(r"call me (\w+)", flags=re.IGNORECASE)
@@ -33,6 +35,72 @@ _NEWS_KEYWORDS = (
     "happening", "latest update", "what's going on", "recent update",
     "war", "conflict", "tension", "election", "attack", "crisis",
 )
+
+# Matches "weather in X", "what's the weather in X", etc.
+_WEATHER_PATTERN = re.compile(r"weather (?:in|at|for) ([a-zA-Z\s]+?)(?:[\?\.\!]|$)", re.IGNORECASE)
+
+
+def _detect_weather_location(user_message: str) -> str | None:
+    """If the user asked about weather somewhere, return that location."""
+    if "weather" not in user_message.lower():
+        return None
+    match = _WEATHER_PATTERN.search(user_message)
+    return match.group(1).strip() if match else None
+
+
+# Matches "open notepad and write/type X", "notepad: X"
+_NOTEPAD_PATTERN = re.compile(
+    r"notepad.*?(?:write|type)\s+(.+)", re.IGNORECASE
+)
+
+# Matches "send whatsapp to <number> saying <message>", "whatsapp <number>: <message>"
+_WHATSAPP_PATTERN = re.compile(
+    r"whatsapp.*?(?:to\s+)?([\+\d][\d\s\-\(\)]{6,})\s*(?:saying|:|message)\s+(.+)",
+    re.IGNORECASE,
+)
+
+
+def detect_notepad_request(user_message: str) -> str | None:
+    """If the user asked to type something in Notepad, return that text."""
+    match = _NOTEPAD_PATTERN.search(user_message)
+    return match.group(1).strip() if match else None
+
+
+def detect_whatsapp_request(user_message: str) -> tuple[str, str] | None:
+    """
+    If the user asked to send a WhatsApp message, return (phone_number, message).
+    Returns None if the message doesn't match the expected pattern.
+    """
+    match = _WHATSAPP_PATTERN.search(user_message)
+    if match:
+        phone = match.group(1).strip()
+        message = match.group(2).strip()
+        return (phone, message)
+    return None
+
+
+_CRASH_KEYWORDS = (
+    "crash", "error", "what went wrong", "why did you close", "why did you stop",
+    "bug", "broke", "broken", "exception",
+)
+
+
+def _wants_crash_log(user_message: str) -> bool:
+    lowered = user_message.lower()
+    return any(k in lowered for k in _CRASH_KEYWORDS)
+
+
+def _detect_code_file_request(user_message: str) -> str | None:
+    """
+    If the user asks about a specific one of Pyros's own files (e.g.
+    "what does memory.py do", "show me your brain.py"), return that
+    filename so we can read the real content.
+    """
+    lowered = user_message.lower()
+    for filename in self_awareness.READABLE_FILES:
+        if filename.lower() in lowered:
+            return filename
+    return None
 
 
 def _build_client() -> Groq:
@@ -89,6 +157,40 @@ def ask_pyros(user_message: str, chat_history: list, preferred_address: str | No
     """
     system_content = get_system_prompt(preferred_address)
 
+    # Self-awareness: if asked about her own code or a specific crash/error,
+    # give her the REAL file content or crash log instead of letting her guess
+    requested_file = _detect_code_file_request(user_message)
+    if requested_file:
+        file_content = self_awareness.read_own_file(requested_file)
+        system_content += f"""
+
+The user is asking about your own file '{requested_file}'. Here is its REAL
+current content - use this to answer accurately, don't guess or make up
+what the code does:
+
+{file_content}
+"""
+    elif _wants_crash_log(user_message):
+        crash_content = self_awareness.get_recent_crash_log()
+        system_content += f"""
+
+The user is asking about an error/crash. Here is the REAL recent crash log
+content - use this to explain what actually happened, don't guess:
+
+{crash_content}
+"""
+
+    weather_location = _detect_weather_location(user_message)
+    if weather_location:
+        weather_data = weather.get_weather(weather_location)
+        system_content += f"""
+
+The user is asking about real weather. Here is the REAL current weather
+data - use this, don't guess or make up conditions:
+
+{weather_data}
+"""
+
     # Fetch real news if the user is asking about it directly, OR if the
     # previous reply was already news-based (likely a follow-up question)
     if _wants_news(user_message) or _last_reply_was_news(chat_history):
@@ -144,7 +246,7 @@ Rules for answering this news question:
             )
             return response.choices[0].message.content
         except Exception as e2:
-            return f"(Pyros couldn't think just now — both keys failed: {e2})"
+            return f"(PYROS couldn't get that right now — {e2})"
 
 
 # --- Quick manual test ---
