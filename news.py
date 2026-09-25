@@ -83,7 +83,7 @@ def _get_from_currents(limit: int = 10) -> list[dict] | None:
 # ---------- FALLBACK: RSS ----------
 
 def _get_from_rss(limit_per_source: int = 5) -> list[dict]:
-    """Fetch headlines + summaries + URLs from RSS feeds. Always works, no key needed."""
+    """Fetch headlines + summaries + URLs from RSS feeds. Always works, no key needed. Make it very classed and well ordered and give summaries at least 5 lines"""
     all_articles = []
     for source, url in FEEDS.items():
         try:
