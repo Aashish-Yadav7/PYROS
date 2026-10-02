@@ -12,7 +12,8 @@ CREATOR = {
     "role": "Creator and owner of Pyros",
     # Add more facts about yourself here as you want Pyros to know them:
     # "favorite_thing": "...",
-    # "birthday": "...",
+    # "birthday": "...", 
+    "news_types_liked": "Give me only news related to tech World, Healthcare, AI, Nvidia, Anthropic, Claude, Opus and many others related to it."
 }
 
 # If IP-based auto location detection fails on your network (firewall/DNS
