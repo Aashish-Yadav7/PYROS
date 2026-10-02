@@ -261,6 +261,33 @@ class AutomationThread(QThread):
             self.error_occurred.emit(err)
 
 
+class ComposeAndSendThread(QThread):
+    """
+    For WhatsApp messages sent by INTENT rather than exact wording: first
+    asks the LLM to draft real, natural message text conveying that intent,
+    then actually sends the drafted message - not a verbatim echo of what
+    the user typed.
+    """
+    action_done = pyqtSignal(str)
+    error_occurred = pyqtSignal(str)
+
+    def __init__(self, phone, intent, preferred_address):
+        super().__init__()
+        self.phone = phone
+        self.intent = intent
+        self.preferred_address = preferred_address
+
+    def run(self):
+        try:
+            drafted_message = brain.compose_whatsapp_message(self.intent, self.preferred_address)
+            result = automation.send_whatsapp_message(self.phone, drafted_message)
+            self.action_done.emit(f"Drafted: \"{drafted_message}\"\n{result}")
+        except Exception:
+            err = traceback.format_exc()
+            print(f"[ComposeAndSendThread] CRASH:\n{err}")
+            self.error_occurred.emit(err)
+
+
 class PyrosWindow(QWidget):
     def __init__(self):
         super().__init__()
@@ -535,13 +562,22 @@ class PyrosWindow(QWidget):
         # Check if this is a WhatsApp automation request
         whatsapp_request = brain.detect_whatsapp_request(user_text)
         if whatsapp_request:
-            phone, message = whatsapp_request
-            self._show_pyros(f"On it — sending that to {phone} now.")
-            thread = AutomationThread("whatsapp", phone, message)
-            thread.action_done.connect(self._on_automation_done)
-            thread.error_occurred.connect(self._on_thread_error)
-            self._track_thread(thread)
-            thread.start()
+            phone = whatsapp_request["phone"]
+            if whatsapp_request["mode"] == "verbatim":
+                message = whatsapp_request["text"]
+                self._show_pyros(f"On it — sending that to {phone} now.")
+                thread = AutomationThread("whatsapp", phone, message)
+                thread.action_done.connect(self._on_automation_done)
+                thread.error_occurred.connect(self._on_thread_error)
+                self._track_thread(thread)
+                thread.start()
+            else:  # "intent" mode - compose the actual wording first
+                self._show_pyros(f"Let me draft that for {phone}...")
+                thread = ComposeAndSendThread(phone, whatsapp_request["text"], self.preferred_address)
+                thread.action_done.connect(self._on_automation_done)
+                thread.error_occurred.connect(self._on_thread_error)
+                self._track_thread(thread)
+                thread.start()
             return
 
         # Disable input while she's thinking
