@@ -53,9 +53,15 @@ _NOTEPAD_PATTERN = re.compile(
     r"notepad.*?(?:write|type)\s+(.+)", re.IGNORECASE
 )
 
-# Matches "send whatsapp to <number> saying <message>", "whatsapp <number>: <message>"
-_WHATSAPP_PATTERN = re.compile(
-    r"whatsapp.*?(?:to\s+)?([\+\d][\d\s\-\(\)]{6,})\s*(?:saying|:|message)\s+(.+)",
+# Mode 1: exact verbatim text - "saying/message <exact text>"
+_WHATSAPP_VERBATIM_PATTERN = re.compile(
+    r"whatsapp.*?(?:to\s+)?([\+\d][\d\s\-\(\)]{6,})\s*(?:saying|message)\s+(.+)",
+    re.IGNORECASE,
+)
+
+# Mode 2: an INTENT to compose from - "telling them/about <what to convey>"
+_WHATSAPP_INTENT_PATTERN = re.compile(
+    r"whatsapp.*?(?:to\s+)?([\+\d][\d\s\-\(\)]{6,})\s*(?:telling (?:them|him|her)|about|regarding)\s+(.+)",
     re.IGNORECASE,
 )
 
@@ -66,17 +72,66 @@ def detect_notepad_request(user_message: str) -> str | None:
     return match.group(1).strip() if match else None
 
 
-def detect_whatsapp_request(user_message: str) -> tuple[str, str] | None:
+def detect_whatsapp_request(user_message: str) -> dict | None:
     """
-    If the user asked to send a WhatsApp message, return (phone_number, message).
-    Returns None if the message doesn't match the expected pattern.
+    If the user asked to send a WhatsApp message, return a dict:
+    {"phone": ..., "text": ..., "mode": "verbatim" or "intent"}
+
+    "verbatim" mode ("saying X") sends X exactly as typed.
+    "intent" mode ("telling them X" / "about X") means X is what the
+    message should CONVEY - the actual wording gets composed separately
+    by compose_whatsapp_message(), not sent as-is.
     """
-    match = _WHATSAPP_PATTERN.search(user_message)
-    if match:
-        phone = match.group(1).strip()
-        message = match.group(2).strip()
-        return (phone, message)
+    verbatim_match = _WHATSAPP_VERBATIM_PATTERN.search(user_message)
+    if verbatim_match:
+        return {
+            "phone": verbatim_match.group(1).strip(),
+            "text": verbatim_match.group(2).strip(),
+            "mode": "verbatim",
+        }
+
+    intent_match = _WHATSAPP_INTENT_PATTERN.search(user_message)
+    if intent_match:
+        return {
+            "phone": intent_match.group(1).strip(),
+            "text": intent_match.group(2).strip(),
+            "mode": "intent",
+        }
+
     return None
+
+
+def compose_whatsapp_message(intent: str, preferred_address: str | None) -> str:
+    """
+    Uses the LLM to draft an actual, natural WhatsApp message conveying
+    the given intent - not a verbatim echo of what the user typed.
+    """
+    compose_prompt = f"""
+Write a short, natural WhatsApp message conveying this: "{intent}"
+
+Rules:
+- Write ONLY the message text itself, nothing else - no quotes around it,
+  no "Here's a message:" preamble, no explanation.
+- Keep it casual and natural, the way a real person texts - short sentences,
+  no overly formal phrasing.
+- Do not sign it or add a name at the end.
+"""
+    system_content = get_system_prompt(preferred_address)
+    messages = [
+        {"role": "system", "content": system_content},
+        {"role": "user", "content": compose_prompt},
+    ]
+
+    client = _build_client()
+    try:
+        response = client.chat.completions.create(
+            model=MODEL_NAME,
+            messages=messages,
+            temperature=0.8,
+        )
+        return response.choices[0].message.content.strip().strip('"')
+    except Exception as e:
+        return f"(Couldn't compose the message: {e})"
 
 
 _CRASH_KEYWORDS = (
